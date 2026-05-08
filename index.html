@@ -1,0 +1,3785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Shrimphony - Shrimp Idle Game</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;user-select:none;}
+body{background:#0a1628;color:#e8f4ff;font-family:system-ui,sans-serif;overflow:hidden;height:100vh;width:100vw;}
+#ui{position:fixed;top:0;left:0;right:0;height:52px;background:rgba(10,22,40,0.97);border-bottom:1px solid rgba(255,255,255,0.12);display:flex;align-items:center;gap:16px;padding:0 16px;z-index:100;}
+#money-display{font-size:18px;font-weight:600;color:#ffd700;display:flex;align-items:center;gap:6px;}
+#ui .stat{font-size:12px;color:rgba(255,255,255,0.45);}
+#ui .stat span{color:rgba(255,255,255,0.8);}
+#ui .hint{margin-left:auto;font-size:11px;color:rgba(255,255,255,0.3);}
+#tank{position:fixed;top:52px;left:270px;right:300px;bottom:0;overflow:hidden;cursor:grab;transition:left 0.25s ease,right 0.25s ease;}
+#tank.left-collapsed{left:0;}
+#tank.right-collapsed{right:0;}
+#tank.grabbing{cursor:grabbing;}
+#tank-inner{position:absolute;width:2400px;height:1600px;background:linear-gradient(180deg,#0d2b4a 0%,#0a1e36 60%,#060f1e 100%);}
+#tank-inner::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 49px,rgba(255,255,255,0.015) 50px),repeating-linear-gradient(90deg,transparent,transparent 49px,rgba(255,255,255,0.015) 50px);}
+#shrimp-canvas{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;image-rendering:pixelated;image-rendering:crisp-edges;z-index:5;}
+.sand{position:absolute;bottom:0;left:0;right:0;height:60px;background:linear-gradient(180deg,#2a1a05 0%,#3d2a0a 100%);border-top:2px solid rgba(255,200,100,0.2);}
+.plant{position:absolute;bottom:60px;}
+.plant svg{display:block;}
+.bubble{position:absolute;border-radius:50%;background:rgba(120,210,255,0.08);border:1px solid rgba(120,210,255,0.12);animation:rise linear infinite;}
+@keyframes rise{0%{transform:translateY(0) scale(1);opacity:0.7;}100%{transform:translateY(-350px) scale(1.3);opacity:0;}}
+#sidebar{position:fixed;top:52px;left:0;width:270px;bottom:0;background:rgba(8,18,35,0.98);border-right:1px solid rgba(255,255,255,0.08);overflow-y:auto;padding:8px;transition:transform 0.25s ease;}
+#sidebar.collapsed{transform:translateX(-100%);}
+.panel-toggle{position:fixed;top:60px;width:24px;height:60px;background:rgba(8,18,35,0.95);border:1px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.6);font-size:14px;cursor:pointer;z-index:90;display:flex;align-items:center;justify-content:center;transition:left 0.25s ease,right 0.25s ease,background 0.15s;}
+.panel-toggle:hover{background:rgba(255,255,255,0.1);color:#fff;}
+#left-toggle{left:270px;border-radius:0 6px 6px 0;border-left:none;}
+#left-toggle.collapsed{left:0;}
+#right-toggle{right:300px;border-radius:6px 0 0 6px;border-right:none;}
+#right-toggle.collapsed{right:0;}
+.tier-section{margin-bottom:4px;}
+.tier-header{font-size:11px;font-weight:500;letter-spacing:1px;padding:8px 10px;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:6px;transition:background 0.15s;}
+.tier-header:hover{background:rgba(255,255,255,0.06);}
+.t1-header{color:#ff9a7a;background:rgba(232,68,58,0.12);}
+.t2-header{color:#7ab8ff;background:rgba(58,122,232,0.12);}
+.t3-header{color:#b8ffb8;background:rgba(58,232,88,0.12);}
+.shop-header{color:rgba(255,215,0,0.8);background:rgba(255,215,0,0.08);}
+.upgrades-header{color:#c8a8ff;background:rgba(160,120,232,0.12);}
+.tier-count{margin-left:auto;font-size:10px;opacity:0.6;font-weight:400;}
+.tier-body{padding:4px 4px 4px 8px;display:block;}
+.tier-body.collapsed{display:none;}
+.panel-search{width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.85);font-size:12px;padding:6px 10px;border-radius:6px;margin-bottom:8px;outline:none;font-family:inherit;}
+.panel-search:focus{border-color:rgba(255,215,0,0.4);background:rgba(255,255,255,0.07);}
+.panel-search::placeholder{color:rgba(255,255,255,0.3);}
+.sub-tier-section{margin-bottom:4px;}
+.sub-tier-header{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:rgba(255,255,255,0.45);padding:5px 8px;border-radius:4px;cursor:pointer;background:rgba(255,255,255,0.02);}
+.sub-tier-header:hover{background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.7);}
+.sub-tier-body{padding:4px 0 0 4px;}
+.sub-tier-body.collapsed{display:none;}
+.shrimp-card{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:9px 12px;margin-bottom:6px;cursor:pointer;transition:background 0.15s,border-color 0.15s,box-shadow 0.2s;}
+.shrimp-card:hover{background:rgba(255,255,255,0.07);border-color:rgba(255,255,255,0.14);}
+.shrimp-card.affordable{border-color:rgba(255,215,0,0.35);background:rgba(255,215,0,0.04);}
+.shrimp-card.affordable:hover{border-color:rgba(255,215,0,0.6);background:rgba(255,215,0,0.1);box-shadow:0 0 12px rgba(255,215,0,0.15);}
+.shrimp-card.affordable .sc-price{color:#ffd700;font-weight:600;}
+.shrimp-card.unaffordable{opacity:0.55;}
+.shrimp-card.unaffordable .sc-price{color:rgba(255,100,100,0.8);}
+.upgrade-card.affordable{border-color:rgba(200,168,255,0.4);background:rgba(160,120,232,0.06);}
+.upgrade-card.affordable:hover{border-color:rgba(200,168,255,0.7);background:rgba(160,120,232,0.14);box-shadow:0 0 12px rgba(200,168,255,0.2);}
+.upgrade-card.affordable .sc-price{color:#c8a8ff;font-weight:600;}
+.sc-name{font-size:13px;font-weight:500;display:flex;align-items:center;gap:6px;}
+.sc-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.sc-info{font-size:11px;color:rgba(255,255,255,0.38);margin-top:2px;}
+.sc-price{font-size:12px;color:#ffd700;margin-top:4px;}
+.sell-btn{display:inline-block;font-size:10px;color:#ff8888;cursor:pointer;margin-top:5px;padding:3px 8px;border:1px solid rgba(255,100,100,0.3);border-radius:4px;}
+.sell-btn:hover{background:rgba(255,100,100,0.1);}
+.sell-btn-disabled{display:inline-block;font-size:10px;color:rgba(255,255,255,0.3);margin-top:5px;padding:3px 8px;border:1px solid rgba(255,255,255,0.1);border-radius:4px;font-style:italic;}
+.buy-btn{display:inline-block;font-size:10px;color:#88ff88;cursor:pointer;margin-top:5px;padding:3px 8px;border:1px solid rgba(100,255,100,0.3);border-radius:4px;}
+.buy-btn:hover{background:rgba(100,255,100,0.1);}
+.buy-btn.disabled{color:rgba(255,255,255,0.3);border-color:rgba(255,255,255,0.1);cursor:not-allowed;}
+.buy-btn.disabled:hover{background:transparent;}
+.sc-actions{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px;}
+.sc-actions .buy-btn,.sc-actions .sell-btn,.sc-actions .sell-btn-disabled{margin-top:0;}
+.sc-count{color:rgba(255,255,255,0.5);font-weight:400;}
+.coin{position:absolute;width:20px;height:20px;border-radius:50%;background:#e6b800;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#7a5200;cursor:pointer;z-index:8;border:1.5px solid #ffd700;transition:transform 0.1s;}
+.coin:hover{transform:scale(1.25)!important;filter:brightness(1.2);}
+.diamond{position:absolute;width:24px;height:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:8;filter:drop-shadow(0 0 6px rgba(158,201,255,0.6));transition:transform 0.1s;}
+.diamond:hover{transform:scale(1.18);filter:drop-shadow(0 0 10px rgba(158,201,255,0.9));}
+
+/* Cave — appears at final tank expansion */
+.cave{position:absolute;width:240px;height:220px;z-index:6;pointer-events:none;}
+.cave.cave-spawning{animation:caveAppear 0.8s ease;}
+@keyframes caveAppear{from{opacity:0;transform:scale(0.85);}to{opacity:1;transform:scale(1);}}
+.cave .cave-mouth{position:absolute;inset:0;}
+.cave .cave-counter{position:absolute;bottom:-22px;left:50%;transform:translateX(-50%);background:rgba(10,5,12,0.92);border:1px solid rgba(255,80,80,0.4);border-radius:8px;padding:5px 14px;font-family:system-ui,sans-serif;text-align:center;pointer-events:none;white-space:nowrap;}
+.cave .cave-counter-label{font-size:9px;font-weight:700;letter-spacing:2px;color:#ff7a7a;}
+.cave .cave-counter-value{font-size:14px;font-weight:700;color:#fff;margin-top:1px;}
+.cave .cave-counter-hint{font-size:9px;color:rgba(255,255,255,0.4);margin-top:1px;font-style:italic;}
+.cave.cave-target-ok{animation:cavePulse 0.6s ease-in-out infinite alternate;}
+@keyframes cavePulse{from{transform:scale(1);}to{transform:scale(1.04);}}
+
+/* Mantis speech bubble above the predator */
+.mantis-speech{position:absolute;min-width:160px;max-width:280px;width:max-content;height:50px;background:rgba(8,18,35,0.95);border:1.5px solid rgba(255,80,80,0.5);border-radius:8px;display:flex;align-items:center;gap:8px;padding:5px 10px;box-sizing:border-box;font-family:system-ui,sans-serif;z-index:11;pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,0.5);animation:speechPop 0.25s ease;}
+.mantis-speech::after{content:'';position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:8px solid rgba(8,18,35,0.95);}
+@keyframes speechPop{from{transform:scale(0.7);opacity:0;}to{transform:scale(1);opacity:1;}}
+.mantis-speech-icon{width:22px;height:22px;border-radius:50%;flex-shrink:0;border:1.5px solid rgba(255,255,255,0.5);}
+.mantis-speech-body{flex:1;display:flex;flex-direction:column;gap:3px;min-width:0;}
+.mantis-speech-text{font-size:11px;font-weight:600;color:#fff;white-space:nowrap;}
+.mantis-hunger-bar{height:4px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;}
+.mantis-hunger-fill{height:100%;transition:width 0.3s ease,background 0.3s ease;}
+
+.snail{position:absolute;width:46px;height:30px;z-index:9;pointer-events:none;}
+.snail svg{width:100%;height:100%;}
+/* Autobreeder */
+.ab-frame{background:linear-gradient(180deg,rgba(40,30,80,0.92),rgba(20,15,40,0.95));border:2px solid #8a6ad8;border-radius:8px;padding:6px 10px;box-shadow:0 0 12px rgba(138,106,216,0.4),inset 0 1px 0 rgba(255,255,255,0.1);font-family:system-ui,sans-serif;}
+.ab-title{font-size:10px;font-weight:700;letter-spacing:1.5px;color:#c8a8ff;text-align:center;margin-bottom:6px;}
+.ab-slots{display:flex;align-items:center;justify-content:center;gap:4px;}
+.ab-slot{width:70px;height:54px;border:1.5px dashed rgba(200,168,255,0.5);border-radius:6px;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.15s;}
+.ab-slot:hover{background:rgba(200,168,255,0.1);}
+.ab-slot.ab-slot-ok{border-color:#00ff88;background:rgba(0,255,136,0.15);box-shadow:0 0 8px rgba(0,255,136,0.4);}
+.ab-slot.ab-slot-bad{border-color:#ff4444;background:rgba(255,68,68,0.15);box-shadow:0 0 8px rgba(255,68,68,0.4);}
+.ab-slot-inner{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;}
+.ab-empty{font-size:10px;color:rgba(255,255,255,0.3);font-style:italic;}
+.ab-shrimp{width:22px;height:22px;border-radius:50%;border:1.5px solid rgba(255,255,255,0.5);}
+.ab-name{font-size:8px;color:rgba(255,255,255,0.85);text-align:center;line-height:1;max-width:64px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ab-plus{font-size:14px;color:rgba(200,168,255,0.7);font-weight:700;}
+.ab-progress{height:5px;background:rgba(0,0,0,0.6);border-radius:3px;overflow:hidden;margin-top:6px;border:1px solid rgba(138,106,216,0.3);}
+.ab-progress-fill{height:100%;background:linear-gradient(90deg,#8a6ad8,#c8a8ff);width:0%;transition:width 0.3s;}
+.ab-status{font-size:9px;color:rgba(255,255,255,0.55);text-align:center;margin-top:4px;}
+/* Shrimp Magnet */
+/* In-tank magnet puck (small visual) */
+.magnet{position:absolute;width:74px;height:74px;z-index:10;cursor:move;font-family:system-ui,sans-serif;}
+.magnet.magnet-dragging{opacity:0.7;}
+.magnet-puck{width:100%;height:100%;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(circle at 35% 30%,rgba(255,255,255,0.18),rgba(0,0,0,0.55) 75%);border:2.5px solid #d86a8a;box-shadow:0 0 14px rgba(216,106,138,0.55),inset 0 0 8px rgba(0,0,0,0.5);position:relative;transition:transform 0.15s,box-shadow 0.15s;}
+.magnet-puck:hover{transform:scale(1.06);}
+.magnet-puck.polarity-attract{border-color:#6acce8;box-shadow:0 0 16px rgba(106,204,232,0.7),inset 0 0 8px rgba(0,0,0,0.5);}
+.magnet-puck.polarity-repel{border-color:#e86a6a;box-shadow:0 0 16px rgba(232,106,106,0.7),inset 0 0 8px rgba(0,0,0,0.5);}
+.magnet.magnet-highlighted .magnet-puck{transform:scale(1.18);box-shadow:0 0 24px rgba(255,215,0,0.8),inset 0 0 8px rgba(0,0,0,0.5);}
+.magnet-puck-icon{font-size:22px;line-height:1;}
+.magnet-puck-id{font-size:11px;font-weight:700;color:rgba(255,255,255,0.95);margin-top:1px;letter-spacing:0.5px;}
+.magnet-puck-dot{position:absolute;bottom:5px;right:5px;width:14px;height:14px;border-radius:50%;border:2px solid rgba(0,0,0,0.6);}
+.magnet-puck-lock{position:absolute;top:3px;right:3px;font-size:10px;background:rgba(0,0,0,0.6);border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;}
+
+/* Magnet taskbar (fixed, bottom-center, screen space) */
+#magnet-taskbar{position:fixed;bottom:42px;left:50%;transform:translateX(-50%);display:flex;gap:8px;align-items:stretch;z-index:650;padding:6px 8px;background:rgba(5,15,30,0.92);border:1px solid rgba(255,255,255,0.12);border-radius:10px;backdrop-filter:blur(6px);box-shadow:0 4px 18px rgba(0,0,0,0.45);max-width:calc(100vw - 280px);overflow-x:auto;transition:bottom 0.3s ease;}
+#magnet-taskbar.docked-bottom{bottom:42px;left:50%;top:auto;transform:translateX(-50%);}
+.mtb-grip{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:0 8px;cursor:move;color:rgba(255,255,255,0.35);user-select:none;flex-shrink:0;border-right:1px solid rgba(255,255,255,0.08);margin-right:4px;}
+.mtb-grip:hover{color:rgba(255,255,255,0.7);}
+.mtb-grip-dots{font-size:14px;line-height:0.7;letter-spacing:1px;}
+.mtb-recall-bar{font-size:10px;padding:3px 7px;border-radius:4px;cursor:pointer;background:rgba(255,217,122,0.1);border:1px solid rgba(255,217,122,0.3);color:#ffd97a;font-family:inherit;align-self:center;flex-shrink:0;white-space:nowrap;}
+.mtb-recall-bar:hover{background:rgba(255,217,122,0.2);}
+.mtb-card{background:rgba(20,30,50,0.88);border:1.5px solid rgba(255,255,255,0.12);border-radius:8px;padding:7px 9px;display:flex;flex-direction:column;gap:5px;min-width:155px;flex-shrink:0;font-family:system-ui,sans-serif;transition:border-color 0.15s,box-shadow 0.15s;}
+.mtb-card.polarity-attract{border-color:rgba(106,204,232,0.5);}
+.mtb-card.polarity-repel{border-color:rgba(232,106,106,0.5);}
+.mtb-card.mtb-pulse{animation:mtb-pulse 0.6s ease;}
+@keyframes mtb-pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.06);box-shadow:0 0 14px rgba(255,215,0,0.6);}}
+.mtb-header{display:flex;align-items:center;gap:5px;}
+.mtb-id{font-size:11px;font-weight:700;color:#fff;flex:1;letter-spacing:0.5px;}
+.mtb-btn{font-size:11px;padding:3px 8px;border-radius:5px;cursor:pointer;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.18);color:rgba(255,255,255,0.85);font-family:inherit;transition:background 0.15s;}
+.mtb-btn:hover{background:rgba(255,255,255,0.14);}
+.mtb-lock{font-size:13px;padding:1px 6px;}
+.mtb-recall{font-size:13px;padding:1px 6px;color:#ffd97a;border-color:rgba(255,217,122,0.35);}
+.mtb-recall:hover{background:rgba(255,217,122,0.15);}
+.mtb-delete{color:#ff8888;border-color:rgba(255,100,100,0.3);}
+.mtb-delete:hover{background:rgba(255,100,100,0.15);}
+.mtb-polarity{font-weight:600;width:100%;}
+.mtb-card.polarity-attract .mtb-polarity{color:#6acce8;border-color:rgba(106,204,232,0.4);}
+.mtb-card.polarity-repel .mtb-polarity{color:#e86a6a;border-color:rgba(232,106,106,0.4);}
+.mtb-slot{background:rgba(0,0,0,0.4);border:1.5px dashed rgba(255,255,255,0.3);border-radius:6px;padding:5px 8px;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;gap:6px;color:rgba(255,255,255,0.85);min-height:32px;transition:all 0.15s;}
+.mtb-slot:hover{background:rgba(255,255,255,0.07);}
+.mtb-slot.filled{border-style:solid;border-color:rgba(255,255,255,0.4);}
+.mtb-slot-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;border:1.5px solid rgba(255,255,255,0.5);}
+.mtb-slot-name{font-weight:500;font-size:11px;}
+.mtb-slot-empty{font-style:italic;color:rgba(255,255,255,0.4);font-size:10px;}
+.mtb-slot.magnet-slot-ok{border-color:#00ff88;background:rgba(0,255,136,0.18);box-shadow:0 0 8px rgba(0,255,136,0.4);}
+.mtb-slot.magnet-slot-bad{border-color:#ff4444;background:rgba(255,68,68,0.18);box-shadow:0 0 8px rgba(255,68,68,0.4);}
+#breed-msg{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(5,15,30,0.92);border:1px solid rgba(255,255,255,0.15);border-radius:20px;padding:8px 22px;font-size:13px;z-index:400;pointer-events:none;display:none;white-space:nowrap;}
+#tooltip{position:fixed;background:rgba(5,15,30,0.95);border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:6px 11px;font-size:12px;z-index:600;pointer-events:none;display:none;line-height:1.6;}
+#sel-info{position:fixed;top:60px;right:310px;background:rgba(5,15,30,0.95);border:1px solid rgba(255,255,255,0.15);border-radius:10px;padding:12px 16px;font-size:12px;z-index:200;display:none;min-width:190px;transition:right 0.25s ease;}
+#sel-info.right-collapsed{right:10px;}
+#sel-info h4{font-size:14px;font-weight:500;margin-bottom:8px;}
+.si-row{display:flex;justify-content:space-between;gap:20px;margin-top:3px;font-size:12px;color:rgba(255,255,255,0.55);}
+.si-row span:last-child{color:rgba(255,255,255,0.85);}
+.cd-bar{height:4px;background:rgba(255,255,255,0.08);border-radius:2px;overflow:hidden;margin-top:8px;}
+.cd-fill{height:100%;background:#4a9eff;border-radius:2px;transition:width 0.2s;}
+.cd-lbl{font-size:10px;color:rgba(255,255,255,0.35);margin-top:4px;}
+#notif{position:fixed;top:62px;left:50%;transform:translateX(-50%);background:rgba(5,15,30,0.95);border:1px solid rgba(255,215,0,0.4);border-radius:8px;padding:10px 20px;font-size:13px;color:#ffd700;z-index:500;pointer-events:none;display:none;text-align:center;}
+#breed-wheel-wrap{position:fixed;bottom:50px;left:280px;width:210px;background:rgba(5,15,30,0.95);border:1px solid rgba(255,255,255,0.15);border-radius:10px;padding:12px;z-index:300;display:none;text-align:center;transition:left 0.25s ease,bottom 0.25s ease;}
+#breed-wheel-wrap.left-collapsed{left:20px;}
+#breed-wheel-wrap.shrimpedia-shifted{bottom:calc(33vh + 12px);}
+#breed-wheel-wrap h5{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,0.4);margin-bottom:8px;}
+#wheel-result{font-size:12px;font-weight:500;margin-top:10px;min-height:18px;display:flex;align-items:center;justify-content:center;gap:7px;}
+#wheel-result-dot{width:11px;height:11px;border-radius:50%;display:inline-block;flex-shrink:0;}
+#wheel-result-label{color:#ffd700;}
+#shrimpedia-btn{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.18);color:rgba(255,255,255,0.75);font-size:11px;font-weight:600;padding:6px 12px;border-radius:6px;cursor:pointer;transition:background 0.15s;white-space:nowrap;}
+#shrimpedia-btn:hover{background:rgba(255,255,255,0.14);color:#fff;}
+#reset-btn{background:rgba(255,80,80,0.18);border:1px solid rgba(255,80,80,0.5);color:#ff9999;font-size:11px;font-weight:600;padding:6px 14px;border-radius:6px;cursor:pointer;transition:background 0.15s,color 0.15s;white-space:nowrap;}
+#reset-btn:hover{background:rgba(255,80,80,0.32);color:#ffbbbb;border-color:rgba(255,80,80,0.7);}
+#names-toggle{background:rgba(120,180,255,0.12);border:1px solid rgba(120,180,255,0.4);color:#a8d4ff;font-size:11px;font-weight:600;padding:6px 12px;border-radius:6px;cursor:pointer;transition:background 0.15s;white-space:nowrap;margin-right:8px;}
+#names-toggle:hover{background:rgba(120,180,255,0.24);}
+#names-toggle.off{color:rgba(255,255,255,0.4);border-color:rgba(255,255,255,0.18);background:rgba(255,255,255,0.04);}
+/* ── Shrimpedia ── small bottom-center handle matching the side panel toggles */
+#shrimpedia-handle{position:fixed;bottom:0;left:50%;transform:translateX(-50%);z-index:600;width:60px;height:24px;background:rgba(8,18,35,0.95);border:1px solid rgba(255,255,255,0.12);border-bottom:none;border-radius:6px 6px 0 0;color:rgba(255,255,255,0.6);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.15s,color 0.15s,bottom 0.25s ease;font-family:system-ui,sans-serif;}
+#shrimpedia-handle:hover{background:rgba(255,255,255,0.1);color:#fff;}
+#shrimpedia-handle.shifted{bottom:33vh;}
+
+#shrimpedia-panel{position:fixed;left:0;right:0;bottom:0;z-index:601;background:rgba(8,18,35,0.97);border-top:1px solid rgba(255,255,255,0.12);box-shadow:0 -4px 20px rgba(0,0,0,0.5);display:flex;flex-direction:column;height:33vh;transform:translateY(100%);transition:transform 0.25s ease;}
+#shrimpedia-panel.open{transform:translateY(0);}
+/* Popout (floating window) mode — different positioning, no slide */
+#shrimpedia-panel.popped{left:auto;right:auto;bottom:auto;top:80px;width:720px;height:480px;border:1px solid rgba(255,255,255,0.12);border-radius:10px;overflow:visible;box-shadow:0 8px 32px rgba(0,0,0,0.65);transform:none;}
+#shrimpedia-panel.popped:not(.open){display:none;}
+.spd-resize{position:absolute;display:none;z-index:2;}
+#shrimpedia-panel.popped .spd-resize{display:block;}
+.spd-resize-n{top:-4px;left:8px;right:8px;height:8px;cursor:ns-resize;}
+.spd-resize-s{bottom:-4px;left:8px;right:8px;height:8px;cursor:ns-resize;}
+.spd-resize-w{top:8px;bottom:8px;left:-4px;width:8px;cursor:ew-resize;}
+.spd-resize-e{top:8px;bottom:8px;right:-4px;width:8px;cursor:ew-resize;}
+.spd-resize-nw{top:-4px;left:-4px;width:14px;height:14px;cursor:nwse-resize;}
+.spd-resize-ne{top:-4px;right:-4px;width:14px;height:14px;cursor:nesw-resize;}
+.spd-resize-sw{bottom:-4px;left:-4px;width:14px;height:14px;cursor:nesw-resize;}
+.spd-resize-se{bottom:-4px;right:-4px;width:14px;height:14px;cursor:nwse-resize;}
+#shrimpedia-titlebar{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;background:rgba(255,255,255,0.02);border-bottom:1px solid rgba(255,255,255,0.06);flex-shrink:0;}
+#shrimpedia-panel.popped #shrimpedia-titlebar{cursor:move;}
+#shrimpedia-title-text{font-size:13px;font-weight:600;color:rgba(255,255,255,0.85);display:flex;align-items:center;gap:8px;}
+#shrimpedia-progress-text{font-size:11px;font-weight:400;color:rgba(255,255,255,0.4);}
+#shrimpedia-titlebar-actions{display:flex;gap:6px;align-items:center;}
+.spd-titlebar-btn{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.14);color:rgba(255,255,255,0.75);font-size:11px;padding:4px 9px;border-radius:5px;cursor:pointer;transition:background 0.15s;}
+.spd-titlebar-btn:hover{background:rgba(255,255,255,0.14);color:#fff;}
+
+#shrimpedia-content{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+#shrimpedia-header{display:flex;align-items:center;gap:12px;padding:8px 16px;border-bottom:1px solid rgba(255,255,255,0.06);flex-shrink:0;}
+#shrimpedia-tabs{display:flex;gap:6px;}
+.spd-tab{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.5);font-size:12px;padding:5px 14px;border-radius:6px;cursor:pointer;transition:all 0.15s;}
+.spd-tab:hover{background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.8);}
+.spd-tab.active{background:rgba(255,215,0,0.15);border-color:rgba(255,215,0,0.4);color:#ffd700;}
+#shrimpedia-search{flex:1;max-width:280px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.85);font-size:12px;padding:6px 10px;border-radius:6px;outline:none;font-family:inherit;}
+#shrimpedia-search:focus{border-color:rgba(255,215,0,0.4);background:rgba(255,255,255,0.07);}
+#shrimpedia-search::placeholder{color:rgba(255,255,255,0.3);}
+#shrimpedia-body{flex:1;overflow-y:auto;padding:14px 18px;}
+.spd-section{margin-bottom:24px;}
+.spd-section-title{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:rgba(255,255,255,0.3);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.06);}
+.spd-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;}
+
+/* Prawnstige overlay */
+#prawnstige-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.78);z-index:2000;display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
+#prawnstige-overlay.open{display:flex;}
+#prawnstige-modal{background:linear-gradient(180deg,#0a1830,#08111c);border:1px solid rgba(255,215,0,0.4);border-radius:14px;padding:30px 36px;max-width:780px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.7),inset 0 1px 0 rgba(255,215,0,0.15);}
+#prawnstige-title{font-size:24px;font-weight:700;color:#ffd700;margin-bottom:6px;letter-spacing:0.5px;}
+#prawnstige-subtitle{font-size:13px;color:rgba(255,255,255,0.55);margin-bottom:24px;}
+#prawnstige-cards{display:flex;gap:16px;justify-content:center;margin-bottom:20px;}
+.prawnstige-card{width:200px;height:280px;perspective:1000px;cursor:pointer;}
+.prawnstige-card-inner{position:relative;width:100%;height:100%;transition:transform 0.5s;transform-style:preserve-3d;}
+.prawnstige-card.flipped .prawnstige-card-inner{transform:rotateY(180deg);}
+.prawnstige-card-face{position:absolute;width:100%;height:100%;backface-visibility:hidden;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:18px;box-sizing:border-box;}
+.prawnstige-card-back{background:linear-gradient(135deg,rgba(255,215,0,0.18),rgba(255,140,0,0.1));border:2px solid rgba(255,215,0,0.4);}
+.prawnstige-card-back-icon{font-size:64px;opacity:0.85;text-shadow:0 0 24px rgba(255,215,0,0.5);}
+.prawnstige-card-back-label{margin-top:14px;font-size:11px;font-weight:600;letter-spacing:2px;color:rgba(255,215,0,0.8);text-transform:uppercase;}
+.prawnstige-card-front{background:linear-gradient(180deg,rgba(20,40,75,0.95),rgba(10,25,50,0.95));border:2px solid rgba(120,180,255,0.4);transform:rotateY(180deg);}
+.prawnstige-card-front-icon{font-size:42px;margin-bottom:10px;}
+.prawnstige-card-front-pct{font-size:30px;font-weight:700;color:#9ec9ff;margin-bottom:6px;}
+.prawnstige-card-front-label{font-size:13px;font-weight:600;color:#fff;text-align:center;line-height:1.3;margin-bottom:8px;}
+.prawnstige-card-front-desc{font-size:11px;color:rgba(255,255,255,0.55);text-align:center;line-height:1.4;}
+#prawnstige-cancel{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.18);color:rgba(255,255,255,0.7);font-size:12px;padding:6px 18px;border-radius:6px;cursor:pointer;font-family:inherit;}
+#prawnstige-cancel:hover{background:rgba(255,255,255,0.12);}
+
+/* Yellow Prawnstige button in shrimpedia */
+.spd-prawnstige-btn{background:linear-gradient(180deg,#ffd700,#e6a300);border:1px solid rgba(255,215,0,0.6);color:#1a1200;font-weight:700;font-size:10px;padding:3px 8px;border-radius:4px;cursor:pointer;text-transform:uppercase;letter-spacing:0.5px;font-family:inherit;box-shadow:0 0 12px rgba(255,215,0,0.4);animation:prawnstigeGlow 2s ease-in-out infinite;margin-left:6px;}
+.spd-prawnstige-btn:hover{background:linear-gradient(180deg,#ffe04d,#ffba2e);transform:scale(1.05);}
+@keyframes prawnstigeGlow{0%,100%{box-shadow:0 0 8px rgba(255,215,0,0.4);}50%{box-shadow:0 0 16px rgba(255,215,0,0.7);}}
+.spd-upgrades-btn{background:rgba(120,180,255,0.12);border:1px solid rgba(120,180,255,0.4);color:#9ec9ff;font-size:10px;padding:3px 8px;border-radius:4px;cursor:pointer;font-family:inherit;margin-left:6px;}
+.spd-upgrades-btn:hover{background:rgba(120,180,255,0.24);}
+.spd-card-controls{display:flex;align-items:center;flex-wrap:wrap;gap:4px;margin-top:6px;}
+.spd-upgrades-list{margin-top:6px;padding:6px 8px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,215,0,0.2);border-radius:5px;font-size:10px;color:rgba(255,255,255,0.75);display:none;}
+.spd-upgrades-list.open{display:block;}
+.spd-upgrade-row{padding:2px 0;display:flex;justify-content:space-between;}
+.spd-upgrade-row .v{color:#ffd700;font-weight:600;}
+.spd-card{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:10px 12px;position:relative;transition:background 0.15s;}
+.spd-card.discovered{border-color:rgba(255,255,255,0.14);background:rgba(255,255,255,0.05);}
+.spd-card.undiscovered{opacity:0.45;filter:saturate(0.2);}
+.spd-card:hover{background:rgba(255,255,255,0.08);}
+.spd-card-name{font-size:13px;font-weight:500;display:flex;align-items:center;gap:7px;margin-bottom:5px;}
+.spd-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.spd-parents{font-size:11px;color:rgba(255,255,255,0.4);display:flex;align-items:center;gap:4px;flex-wrap:wrap;}
+.spd-parent-dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0;}
+.spd-chance{font-size:10px;color:rgba(255,215,0,0.7);margin-top:4px;}
+.spd-income{font-size:10px;color:rgba(100,200,100,0.8);margin-top:2px;}
+.spd-lock{position:absolute;top:8px;right:10px;font-size:14px;opacity:0.4;}
+.spd-cross-pair{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+.spd-cross-info{font-size:12px;color:rgba(255,255,255,0.6);}
+.spd-progress-bar{height:3px;background:rgba(255,255,255,0.07);border-radius:2px;overflow:hidden;margin-top:8px;}
+.spd-progress-fill{height:100%;background:#ffd700;border-radius:2px;transition:width 0.4s;}
+/* ── Stock Market Panel ── */
+#stock-panel{position:fixed;top:52px;right:0;width:300px;bottom:0;background:rgba(6,14,28,0.99);border-left:1px solid rgba(255,255,255,0.08);display:flex;flex-direction:column;z-index:50;transition:transform 0.25s ease;}
+#stock-panel.collapsed{transform:translateX(100%);}
+#stock-header{padding:10px 12px 6px;border-bottom:1px solid rgba(255,255,255,0.07);flex-shrink:0;}
+#stock-header h3{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:rgba(255,255,255,0.3);}
+#stock-list{flex:1;overflow-y:auto;padding:6px 0;}
+.stock-row{padding:6px 12px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.04);transition:background 0.1s;}
+.stock-row:hover{background:rgba(255,255,255,0.04);}
+.stock-row.selected{background:rgba(255,215,0,0.07);border-left:2px solid #ffd700;}
+.stock-tier-header{padding:6px 12px;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:rgba(255,255,255,0.45);background:rgba(255,255,255,0.025);cursor:pointer;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.04);}
+.stock-tier-header:hover{background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.7);}
+.stock-tier-count{font-size:10px;opacity:0.6;}
+.sr-top{display:flex;align-items:center;gap:6px;}
+.sr-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.sr-name{font-size:11px;font-weight:500;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sr-price{font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;}
+.sr-change{font-size:9px;margin-top:1px;font-variant-numeric:tabular-nums;}
+.sr-sparkline{margin-top:3px;}
+.up{color:#3ddc84;}.down{color:#ff5555;}.flat{color:rgba(255,255,255,0.4);}
+#stock-chart-area{flex-shrink:0;height:160px;border-top:1px solid rgba(255,255,255,0.07);padding:8px 10px 4px;background:rgba(0,0,0,0.2);}
+#stock-chart-title{font-size:10px;color:rgba(255,255,255,0.4);margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;}
+#stock-chart-canvas{display:block;width:100%;height:120px;}
+/* ── News Ticker ── */
+#news-banner{position:fixed;top:52px;left:0;right:0;z-index:900;display:none;flex-direction:column;pointer-events:none;}
+#news-alert{background:rgba(180,20,20,0.97);border-bottom:2px solid #ff4444;padding:12px 22px;display:flex;align-items:center;gap:14px;pointer-events:all;}
+#news-alert-label{font-size:13px;font-weight:700;letter-spacing:2px;color:#ff9999;white-space:nowrap;text-transform:uppercase;}
+#news-alert-title{font-size:16px;font-weight:600;color:#fff;white-space:nowrap;}
+#news-alert-close{margin-left:auto;cursor:pointer;font-size:18px;color:rgba(255,255,255,0.6);pointer-events:all;}
+#news-ticker{background:rgba(10,22,40,0.97);border-bottom:1px solid rgba(255,68,68,0.4);height:34px;overflow:hidden;position:relative;}
+#news-ticker-inner{position:absolute;white-space:nowrap;top:50%;transform:translateY(-50%);animation:ticker-scroll 35s linear infinite;}
+@keyframes ticker-scroll{0%{left:100%;}100%{left:-200%}}
+#news-ticker-inner span{font-size:14px;font-weight:500;color:rgba(255,210,210,0.95);padding:0 60px;}
+#news-ticker-inner span strong{color:#ffb3b3;font-weight:700;}
+</style>
+</head>
+<body>
+<div id="ui">
+  <div id="money-display">💰 $<span id="money-val">0</span></div>
+  <div class="stat">Shrimp: <span id="shrimp-count">2</span></div>
+  <div class="stat">Types found: <span id="types-count">1</span></div>
+  <div class="stat" id="mantis-stat" style="display:none;color:#ff8a8a;">🦐 Mantis: <span id="mantis-count">0</span></div>
+  <button id="shrimpedia-btn" onclick="toggleShrimpedia()" title="Open Shrimpedia">🦐 Shrimpedia</button>
+  <div class="hint">Scroll = zoom · Shift+Scroll to pan · Drag tank to pan · Drag shrimp onto shrimp to breed</div>
+  <button id="names-toggle" onclick="toggleNames()" title="Show or hide shrimp names">🏷 Names: ON</button>
+  <button id="reset-btn" onclick="resetGame()" title="Wipe save and restart from scratch">↺ Reset Save</button>
+</div>
+<div id="tank">
+  <div id="tank-inner">
+    <div class="sand"></div>
+  </div>
+  <canvas id="shrimp-canvas"></canvas>
+</div>
+<button id="left-toggle" class="panel-toggle" onclick="toggleLeftPanel()">‹</button>
+<button id="right-toggle" class="panel-toggle" onclick="toggleRightPanel()">›</button>
+<div id="sidebar">
+  <input type="text" id="inv-search" class="panel-search" placeholder="🔍 Search inventory..." oninput="invSearchQuery=this.value.toLowerCase().trim();renderInventory();">
+  <div class="tier-section" id="inv-t1">
+    <div class="tier-header t1-header" data-label="Tier 1">▼ Tier 1 <span class="tier-count" id="t1-count"></span></div>
+    <div class="tier-body" id="inv-t1-body"></div>
+  </div>
+  <div class="tier-section" id="inv-t2">
+    <div class="tier-header t2-header" data-label="Tier 2">▶ Tier 2 <span class="tier-count" id="t2-count"></span></div>
+    <div class="tier-body collapsed" id="inv-t2-body"></div>
+  </div>
+  <div class="tier-section" id="inv-t3">
+    <div class="tier-header t3-header" data-label="Tier 3">▶ Tier 3 <span class="tier-count" id="t3-count"></span></div>
+    <div class="tier-body collapsed" id="inv-t3-body"></div>
+  </div>
+  <div class="tier-section" id="upgrades-wrap">
+    <div class="tier-header upgrades-header" data-label="Upgrades">▶ Upgrades <span class="tier-count" id="upgrades-count"></span></div>
+    <div class="tier-body collapsed" id="upgrades-list"></div>
+  </div>
+</div>
+<div id="breed-msg"></div>
+<div id="notif"></div>
+<div id="tooltip"></div>
+<div id="news-banner">
+  <div id="news-alert">
+    <div id="news-alert-label">⚠ BREAKING</div>
+    <div id="news-alert-title"></div>
+    <div id="news-alert-close" onclick="dismissNews()">✕</div>
+  </div>
+  <div id="news-ticker"><div id="news-ticker-inner"><span id="news-ticker-text"></span></div></div>
+</div>
+<div id="stock-panel">
+  <div id="stock-header">
+    <h3>📈 Shrimp Market</h3>
+    <input type="text" id="stock-search" class="panel-search" placeholder="🔍 Search market..." oninput="stockSearchQuery=this.value.toLowerCase().trim();renderStockList();">
+  </div>
+  <div id="stock-list"></div>
+  <div id="stock-chart-area">
+    <div id="stock-chart-title"><span id="chart-label">Select a shrimp</span><span id="chart-price" style="color:#ffd700;font-weight:600;"></span></div>
+    <canvas id="stock-chart-canvas" height="120"></canvas>
+  </div>
+</div>
+<div id="shrimpedia-handle" onclick="toggleShrimpedia()" title="Shrimpedia"><span style="display:inline-block;transform:rotate(90deg);font-size:16px;line-height:1;">‹</span></div>
+<!-- Prawnstige overlay -->
+<div id="prawnstige-overlay">
+  <div id="prawnstige-modal">
+    <div id="prawnstige-title">✨ Prawnstige <span id="prawnstige-shrimp-name"></span></div>
+    <div id="prawnstige-subtitle">Hover a card to reveal. Click to choose.</div>
+    <div id="prawnstige-cards"></div>
+    <button id="prawnstige-cancel">Cancel</button>
+  </div>
+</div>
+
+<div id="shrimpedia-panel">
+  <div class="spd-resize spd-resize-n" data-edge="n"></div>
+  <div class="spd-resize spd-resize-s" data-edge="s"></div>
+  <div class="spd-resize spd-resize-w" data-edge="w"></div>
+  <div class="spd-resize spd-resize-e" data-edge="e"></div>
+  <div class="spd-resize spd-resize-nw" data-edge="nw"></div>
+  <div class="spd-resize spd-resize-ne" data-edge="ne"></div>
+  <div class="spd-resize spd-resize-sw" data-edge="sw"></div>
+  <div class="spd-resize spd-resize-se" data-edge="se"></div>
+  <div id="shrimpedia-titlebar">
+    <div id="shrimpedia-title-text">🦐 Shrimpedia <span id="shrimpedia-progress-text"></span></div>
+    <div id="shrimpedia-titlebar-actions">
+      <button class="spd-titlebar-btn" id="spd-popout-btn" onclick="toggleShrimpediaPopout()" title="Detach into a movable window">⧉ Pop out</button>
+      <button class="spd-titlebar-btn" onclick="closeShrimpedia()" title="Close">✕</button>
+    </div>
+  </div>
+  <div id="shrimpedia-content">
+    <div id="shrimpedia-header">
+      <div id="shrimpedia-tabs">
+        <button class="spd-tab active" data-tier="1">Tier 1</button>
+        <button class="spd-tab" data-tier="2">Tier 2</button>
+        <button class="spd-tab" data-tier="3">Tier 3</button>
+        <button class="spd-tab" data-tier="cross">Cross-Tier</button>
+      </div>
+      <input type="text" id="shrimpedia-search" placeholder="🔍 Search shrimp..." oninput="renderShrimpedia(shrimpediaActiveTier)">
+    </div>
+    <div id="shrimpedia-body"></div>
+  </div>
+</div>
+<div id="breed-wheel-wrap">
+  <h5>Breeding</h5>
+  <canvas id="breed-wheel-canvas" width="186" height="186"></canvas>
+  <div id="wheel-result"><span id="wheel-result-dot" style="display:none"></span><span id="wheel-result-label">Spinning...</span></div>
+</div>
+<div id="sel-info">
+  <h4 id="si-name"></h4>
+  <div class="si-row"><span>Income</span><span id="si-income"></span></div>
+  <div class="si-row"><span>Tier</span><span id="si-tier"></span></div>
+  <div class="si-row"><span>Breed CD</span><span id="si-bcd"></span></div>
+  <div class="cd-bar"><div class="cd-fill" id="si-cd-fill"></div></div>
+  <div class="cd-lbl" id="si-cd-lbl"></div>
+</div>
+
+<script>
+// ── Procedurally generated shrimp data ──────────────────────────────────────
+
+function blendHex(a,b){
+  const r=Math.round((a[0]+b[0])/2),g=Math.round((a[1]+b[1])/2),bl=Math.round((a[2]+b[2])/2);
+  return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${bl.toString(16).padStart(2,'0')}`;
+}
+function hueArr(hexStr){
+  const n=parseInt(hexStr.replace('#',''),16);
+  return[(n>>16)&255,(n>>8)&255,n&255];
+}
+// Make same-type offspring visually distinct from the parent
+function mutateColor(hue,salt){
+  const shifts=[[40,-30,50],[-50,40,35],[35,50,-40],[-30,-50,45],[50,-40,-50],[-45,30,40],[30,-45,55],[-55,25,30],[25,-55,40],[45,40,-55]];
+  const s=shifts[salt%shifts.length];
+  return [Math.min(255,Math.max(20,hue[0]+s[0])),Math.min(255,Math.max(20,hue[1]+s[1])),Math.min(255,Math.max(20,hue[2]+s[2]))];
+}
+function hueToHex(h){return`#${h[0].toString(16).padStart(2,'0')}${h[1].toString(16).padStart(2,'0')}${h[2].toString(16).padStart(2,'0')}`;}
+
+const TIER_CFG={
+  1:{income:0.08, incStep:0.01, bcd:6000,   gcd:3000,  price:0,    chance:0.30},
+  2:{income:0.6,  incStep:0.04, bcd:22000,  gcd:11000, price:400,  chance:0.18},
+  3:{income:5.0,  incStep:0.10, bcd:70000,  gcd:35000, price:3500, chance:0.09},
+};
+
+// T2: explicit thematic definitions — one per T1 parent pair (i≤j, T1 order: red,blue,green,yellow,purple,orange)
+const T2_DEFS_MAP={
+  '0_0':{name:'Inferno',   hue:[224,48,16]},   // Red+Red
+  '1_1':{name:'Abyss',     hue:[10,24,112]},   // Blue+Blue
+  '2_2':{name:'Overgrowth',hue:[20,160,40]},   // Green+Green
+  '3_3':{name:'Storm',     hue:[200,200,48]},  // Yellow+Yellow
+  '4_4':{name:'Void',      hue:[80,16,144]},   // Purple+Purple
+  '5_5':{name:'Bedrock',   hue:[140,80,32]},   // Orange+Orange
+  '0_1':{name:'Steam',     hue:[208,192,224]}, // Red+Blue
+  '0_2':{name:'Wildfire',  hue:[240,136,24]},  // Red+Green
+  '0_3':{name:'Plasma',    hue:[240,80,176]},  // Red+Yellow
+  '0_4':{name:'Ember',     hue:[192,56,72]},   // Red+Purple
+  '0_5':{name:'Magma',     hue:[208,48,8]},    // Red+Orange
+  '1_2':{name:'Tide',      hue:[32,160,136]},  // Blue+Green
+  '1_3':{name:'Tempest',   hue:[96,144,216]},  // Blue+Yellow
+  '1_4':{name:'Frost',     hue:[144,192,248]}, // Blue+Purple
+  '1_5':{name:'Mud',       hue:[96,72,48]},    // Blue+Orange
+  '2_3':{name:'Spore',     hue:[144,216,72]},  // Green+Yellow
+  '2_4':{name:'Blight',    hue:[72,56,112]},   // Green+Purple
+  '2_5':{name:'Jungle',    hue:[24,104,24]},   // Green+Orange
+  '3_4':{name:'Aurora',    hue:[176,96,240]},  // Yellow+Purple
+  '3_5':{name:'Sandstorm', hue:[208,168,56]},  // Yellow+Orange
+  '4_5':{name:'Obsidian',  hue:[56,40,72]},    // Purple+Orange
+};
+
+// T3: 200 thematic names in generation order (outer i = T2 index 0–20, inner j = i..20, capped 200)
+const T3_NAMES_ORDERED=[
+  // Inferno ×  (21)
+  'Purgatory','Geyser','Ashfall','Solarflare','Hellfire','Volcano','Scalding','Conflagration','Corona','Cinder','Pyroclastic','Scald','Firestorm','Meltdown','Kiln','Combustion','Cremation','Burnout','Supernova','Blazestorm','Magmatic',
+  // Abyss ×  (20)
+  'Leviathan','Kelp','Maelstrom','Singularity','Trench','Hydrothermal','Drowned','Bioluminance','Thermal','Smoker','Undertow','Typhoon','Glacier','Silt','Abyssalspore','Necrosis','Swamp','Borealis','Murk','Blackwater',
+  // Overgrowth ×  (19)
+  'Canopy','Thunderleaf','Thornwall','Terrace','Rainforest','Brushland','Electrovine','Autumn','Fertile','Mangrove','Squall','Permafrost','Bog','Mycorrhiza','Plague','Primeval','Bloom','Scrubland','Petrified',
+  // Storm ×  (18)
+  'Hurricane','Thundergod','Landslide','Static','Thunderstrike','Supercell','Spark','Stormfire','Surge','Cyclone','Hailstorm','Monsoon','Pollen','Acidrain','Tropical','Prismatic','Haboob','Thunderstone',
+  // Void ×  (17)
+  'Oblivion','Hollow','Phantom','Darkflame','Antimatter','Dusk','Brimstone','Rip','Vortex','Wraith','Sludge','Miasma','Corruption','Deepwood','Nebula','Nihilstorm','Voidstone',
+  // Bedrock ×  (16)
+  'Tectonic','Geothermal','Scorch','Quartz','Hearth','Basalt','Coastline','Erosion','Tundra','Clay','Fossil','Ruin','Terracotta','Crystal','Desert','Granite',
+  // Steam ×  (15)
+  'Pressure','Smoke','Ioncloud','Sauna','Fumarole','Spray','Whiteout','Fog','Soak','Humidity','Pestilence','Hothouse','Iridescent','Dustcloud','Sheen',
+  // Wildfire ×  (14)
+  'Razorblaze','Searing','Kindling','Lava','Quenching','Firenado','Flashpoint','Char','Brushfire','Contagion','Clearing','Flare','Hellscape','Scorched',
+  // Plasma ×  (13)
+  'Radiance','Ignition','Fission','Electrolysis','Thunderbolt','Cryoplasma','Sparkclay','Ionspore','Irradiate','Zapper','Pulsar','Balllightning','Glassmaker',
+  // Ember ×  (12)
+  'Smoldering','Tephra','Warmwater','Fanned','Thaw','Pottery','Kindlespore','Wither','Campfire','Warmglow','Hazefall','Coalstone',
+  // Magma ×  (11)
+  'Caldera','Lavadelta','Eruption','Pillowlava','Lahar','Pyrospore','Ashblight','Richsoil','Volcanglow','Pyroclasm','Kimberlite',
+  // Tide ×  (10)
+  'Torrent','Riptide','Slush','Estuary','Algae','Polluted','Delta','Bioluminescent','Ripcurrent','Coastrock',
+  // Tempest ×  (9)
+  'Anticyclone','Blizzard','Mudslide','Pollenstorm','Plaguewind','Downpour','Rainbow','Dustdevil','Shattercliff',
+  // Frost ×  (5 — brings total to 200)
+  'Absolute','Sleet','Snowspore','Hoarfrost','Boreal',
+];
+let t3NameIdx=0;
+function nextNameT3(){return T3_NAMES_ORDERED[t3NameIdx++]||'Unknown';}
+
+const TYPES=[];
+const RULES=[];
+
+// ── Tier 1: 6 base shrimp ──
+const T1_DEFS=[
+  {id:'red',    name:'Red',    hue:[232,60,55]},
+  {id:'blue',   name:'Blue',   hue:[55,110,232]},
+  {id:'green',  name:'Green',  hue:[55,220,80]},
+  {id:'yellow', name:'Yellow', hue:[232,205,55]},
+  {id:'purple', name:'Purple', hue:[160,55,232]},
+  {id:'orange', name:'Orange', hue:[232,130,55]},
+];
+
+for(const d of T1_DEFS){
+  const cfg=TIER_CFG[1];
+  TYPES.push({id:d.id,name:d.name+' Shrimp',color:hueToHex(d.hue),tier:1,income:cfg.income,bcd:cfg.bcd,gcd:cfg.gcd,price:0,hue:[...d.hue]});
+}
+
+// ── T1 discovery chain: Red+Red → Blue, Red+Blue → Green, etc ──
+// Only needed for the very first unlocks before T2 kicks in.
+// We give each T1 pair its OWN unique T2 offspring, so no overlap.
+// T1 self-breeds (Red+Red) and cross-breeds (Red+Blue) both produce unique T2s.
+// The discovery rules below just handle sequential T1 unlock:
+const T1_IDS=T1_DEFS.map(d=>d.id);
+// Sequential discovery: Red+Red → Blue, Red+Blue → Green, Red+Green → Yellow,
+// Red+Yellow → Purple, Red+Purple → Orange  (each discovered one at a time)
+RULES.push({p:['red','red'],   o:'blue',   chance:0.40, discovery:true});
+RULES.push({p:['red','blue'],  o:'green',  chance:0.35, discovery:true});
+RULES.push({p:['red','green'], o:'yellow', chance:0.30, discovery:true});
+RULES.push({p:['red','yellow'],o:'purple', chance:0.28, discovery:true});
+RULES.push({p:['red','purple'],o:'orange', chance:0.25, discovery:true});
+
+// ── Generate T2: every T1×T1 pair → unique offspring (21 types) ──
+{
+  const t1=TYPES.filter(t=>t.tier===1);
+  let count=0;
+  for(let i=0;i<t1.length;i++){
+    for(let j=i;j<t1.length;j++){
+      const pa=t1[i],pb=t1[j];
+      const def=T2_DEFS_MAP[`${i}_${j}`];
+      const rawHue=def?[...def.hue]:(i===j?mutateColor(pa.hue,count):hueArr(blendHex(pa.hue,pb.hue)));
+      const color=hueToHex(rawHue);
+      const id=`t2_${i}_${j}`;
+      const cfg=TIER_CFG[2];
+      const inc=+(cfg.income+cfg.incStep*count).toFixed(2);
+      TYPES.push({id,name:(def?def.name:`T2_${i}_${j}`)+' Shrimp',color,tier:2,income:inc,bcd:cfg.bcd+count*600,gcd:cfg.gcd+count*300,price:cfg.price+count*25,hue:rawHue});
+      RULES.push({p:[pa.id,pb.id],o:id,chance:cfg.chance});
+      count++;
+    }
+  }
+}
+
+// ── Generate T3: every T2×T2 pair → unique offspring ──
+// 21 T2s → C(21,2)+21 = 231 T3s — we'll cap at ~200 for performance
+{
+  const t2=TYPES.filter(t=>t.tier===2);
+  let count=0;
+  const maxT3=200;
+  outer:for(let i=0;i<t2.length;i++){
+    for(let j=i;j<t2.length;j++){
+      if(count>=maxT3)break outer;
+      const pa=t2[i],pb=t2[j];
+      const rawHue=i===j?mutateColor(pa.hue,count):hueArr(blendHex(pa.hue,pb.hue));
+      const color=hueToHex(rawHue);
+      const id=`t3_${i}_${j}`;
+      const cfg=TIER_CFG[3];
+      const inc=+(cfg.income+cfg.incStep*count).toFixed(2);
+      TYPES.push({id,name:nextNameT3()+' Shrimp',color,tier:3,income:inc,bcd:cfg.bcd+count*1000,gcd:cfg.gcd+count*500,price:cfg.price+count*40,hue:rawHue});
+      RULES.push({p:[pa.id,pb.id],o:id,chance:cfg.chance});
+      count++;
+    }
+  }
+}
+
+// Total: 6 T1 + 21 T2 + up to 200 T3 = up to 227 types
+// Every same-tier pair has exactly one unique offspring.
+
+function getType(id){return TYPES.find(t=>t.id===id);}
+
+function findSameTierRule(aId,bId){
+  // For same-tier pairs, prefer a non-discovery rule (T2/T3 offspring) if all T1 are discovered
+  // For T1 pairs: if the target T1 isn't discovered yet, use discovery rule; else use T2 rule
+  const t=getType(aId);
+  if(t?.tier===1){
+    // Check if there's an undiscovered T1 to unlock first
+    const discRule=RULES.find(r=>r.discovery&&((r.p[0]===aId&&r.p[1]===bId)||(r.p[0]===bId&&r.p[1]===aId))&&!discovered.has(r.o));
+    if(discRule)return discRule;
+  }
+  // Fall back to the T2/T3 generation rule
+  return RULES.find(r=>!r.discovery&&((r.p[0]===aId&&r.p[1]===bId)||(r.p[0]===bId&&r.p[1]===aId)))||null;
+}
+
+function canBreed(a,b){
+  const now=Date.now();
+  if(wheelSpinning)return{ok:false,why:'Wait for the wheel to finish!'};
+  if(a.bcdEnd>now)return{ok:false,why:`${getType(a.type).name} resting: ${Math.ceil((a.bcdEnd-now)/1000)}s`};
+  if(b.bcdEnd>now)return{ok:false,why:`${getType(b.type).name} resting: ${Math.ceil((b.bcdEnd-now)/1000)}s`};
+  // All breed pairs allowed. Same-tier with a rule produces a new offspring;
+  // same-tier without a rule, or cross-tier, produces 50/50 of one of the parents.
+  return{ok:true};
+}
+
+function doBreed(a,b){
+  const ta=getType(a.type),tb=getType(b.type);
+  const now=Date.now();
+  // breed_speed: shorter cooldown. free_breed_chance: small chance to skip cooldown entirely.
+  const aSpeed=getPrawnstigeBonus(a.type,'breed_speed')/100;
+  const bSpeed=getPrawnstigeBonus(b.type,'breed_speed')/100;
+  const aFreeChance=getPrawnstigeBonus(a.type,'free_breed_chance')/100;
+  const bFreeChance=getPrawnstigeBonus(b.type,'free_breed_chance')/100;
+  a.bcdEnd=(Math.random()<aFreeChance)?0:now+Math.round(ta.bcd/(1+aSpeed));
+  b.bcdEnd=(Math.random()<bFreeChance)?0:now+Math.round(tb.bcd/(1+bSpeed));
+  const nx=(a.x+b.x)/2+(Math.random()-0.5)*80;
+  const ny=(a.y+b.y)/2+(Math.random()-0.5)*80;
+
+  let resultType;
+  let rule=null;
+
+  if(ta.tier===tb.tier){
+    rule=findSameTierRule(a.type,b.type);
+    if(rule){
+      resultType=Math.random()<rule.chance?rule.o:(Math.random()<0.5?a.type:b.type);
+    } else {
+      // No rule for this same-tier pair (rare — happens for some T3×T3) — fall back to 50/50 of parents
+      resultType=Math.random()<0.5?a.type:b.type;
+    }
+  } else {
+    // Option D: cross-tier → randomly one of the two parent types
+    resultType=Math.random()<0.5?a.type:b.type;
+  }
+
+  const resultT=getType(resultType);
+  if(!resultT)return;
+
+  // Build wheel
+  const segMap={};
+  function addSeg(type,w){const t=getType(type);if(!t)return;const isDisc=discovered.has(type);if(segMap[type])segMap[type].weight+=w;else segMap[type]={label:isDisc?t.name:'???',realLabel:t.name,color:isDisc?t.color:'#5a5a5a',realColor:t.color,unknown:!isDisc,weight:w,id:type};}
+  if(ta.tier===tb.tier&&rule){
+    addSeg(rule.o,rule.chance);
+    addSeg(a.type,(1-rule.chance)/2);
+    addSeg(b.type,(1-rule.chance)/2);
+  } else {
+    // Cross-tier OR same-tier-no-rule: 50/50 between parents
+    addSeg(a.type,0.5);addSeg(b.type,0.5);
+  }
+  const segList=Object.values(segMap);
+  const ri=segList.findIndex(s=>s.id===resultType);
+  const wi=Math.floor(Math.random()*segList.length);
+  if(ri!==-1&&ri!==wi)[segList[ri],segList[wi]]=[segList[wi],segList[ri]];
+  const fwi=segList.findIndex(s=>s.id===resultType);
+
+  spinWheel(segList,fwi,()=>{
+    createShrimp(resultType,nx,ny);
+    // extra_offspring upgrade: bonus shrimp roll based on either parent's bonus
+    const extraChance=(getPrawnstigeBonus(a.type,'extra_offspring')+getPrawnstigeBonus(b.type,'extra_offspring'))/100;
+    if(extraChance>0 && Math.random()<extraChance){
+      createShrimp(resultType,nx+(Math.random()-0.5)*40,ny+(Math.random()-0.5)*40);
+      notify('✨ Bonus offspring!','#ffd700');
+    }
+    showBreed((discovered.has(resultType)?'Bred a ':'New! ')+resultT.name+(discovered.has(resultType)?'':' discovered!'),discovered.has(resultType)?'#88aaff':'#ffd700',2500);
+  });
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
+let money=200, nextId=1, shrimps=[], coins=[], discovered=new Set(['red']), globalCDEnd=0, selectedId=null;
+let invSearchQuery='',shopSearchQuery='',stockSearchQuery='';
+let namesEnabled=true;
+// Prawnstige: per-shrimp upgrades. Key = type id, value = array of {kind, pct} entries.
+let prawnstigeUpgrades={};
+let prawnstigeCount={}; // typeId -> times prawnstiged
+// Once an upgrade's unlock threshold is reached, it stays unlocked even if discovered.size drops (e.g. via prawnstige reset)
+let unlockedUpgrades=new Set();
+
+// Possible prawnstige upgrade kinds with their per-tier percent values
+const PRAWNSTIGE_UPGRADE_DEFS=[
+  {kind:'coin_value',         label:'Higher dropped coin value',   icon:'💰', desc:'Coins dropped by this shrimp are worth more.'},
+  {kind:'breed_speed',        label:'Faster breeding cooldown',    icon:'⚡', desc:'This shrimp recovers faster after breeding.'},
+  {kind:'market_swing',       label:'Higher market volatility',    icon:'📈', desc:'Bigger price swings (and more impact from your trades) on this shrimp.'},
+  {kind:'good_event_chance',  label:'More frequent good events',   icon:'🎲', desc:'Random market events for this shrimp lean more positive.'},
+  {kind:'coin_lifespan',      label:'Longer coin lifespan',        icon:'⏳', desc:'Coins from this shrimp linger on the sand longer before fading.'},
+  {kind:'coin_interval',      label:'Faster passive coin spawn',   icon:'🪙', desc:'This shrimp drops passive coins more frequently.'},
+  {kind:'base_price',         label:'Higher base market price',    icon:'💹', desc:'Permanent floor under this shrimp\'s market price.'},
+  {kind:'extra_offspring',    label:'Chance for extra offspring',  icon:'👶', desc:'Chance to spawn a bonus shrimp when breeding involves this type.'},
+  {kind:'crash_dampen',       label:'Reduced crash severity',      icon:'🛡', desc:'Negative market events hit this shrimp less hard.'},
+  {kind:'recovery_speed',     label:'Faster market recovery',      icon:'🔄', desc:'This shrimp\'s market price snaps back to base faster.'},
+  {kind:'free_breed_chance',  label:'Chance to ignore breed timer',icon:'⏱', desc:'Chance for breeding to skip the cooldown for this shrimp.'},
+  {kind:'extra_coin_chance',  label:'Chance for an extra coin',    icon:'✨', desc:'Chance to drop a second coin on each passive coin tick.'},
+];
+// Per-tier percentages (T1 unused, T2 is 1.5%, T3 is 3%) — feel meaningful but not gamebreaking
+// Per-stack pct doubles each time a shrimp prawnstiges.
+// T1: 1, 2, 4, 8, 16...   T2: 1.5, 3, 6, 12...   T3: 3, 6, 12, 24...
+function prawnstigePctForTier(tier, count){
+  const base=tier===1?1:tier===2?1.5:3;
+  // count is 0-indexed (count=0 means "this is the first prawnstige")
+  return base*Math.pow(2,count||0);
+}
+
+// Sum a kind's total percent for a type
+function getPrawnstigeBonus(typeId, kind){
+  const list=prawnstigeUpgrades[typeId];
+  if(!list||!list.length)return 0;
+  let total=0;
+  for(const u of list)if(u.kind===kind)total+=u.pct;
+  return total;
+}
+
+// Returns the list of offspring T-IDs that determine prawnstige eligibility for typeId.
+// T1: all T2 offspring this T1 parents (the "Red Shrimp combinations" section).
+// T2: all T3 offspring where typeId is a parent.
+// T3: all T3 offspring sharing the same parent[0] group as this T3 (sibling T3s).
+function getPrawnstigeOffspringList(typeId){
+  const t=getType(typeId);
+  if(!t)return[];
+  if(t.tier===1){
+    return RULES.filter(r=>!r.discovery && (r.p[0]===typeId||r.p[1]===typeId)).map(r=>r.o);
+  }
+  if(t.tier===2){
+    return RULES.filter(r=>!r.discovery && (r.p[0]===typeId||r.p[1]===typeId)).map(r=>r.o);
+  }
+  if(t.tier===3){
+    const myRule=RULES.find(r=>!r.discovery && r.o===typeId);
+    if(!myRule)return[typeId];
+    const groupParent=myRule.p[0];
+    return RULES.filter(r=>!r.discovery && r.p[0]===groupParent).map(r=>r.o);
+  }
+  return[];
+}
+
+function isPrawnstigeEligible(typeId){
+  const t=getType(typeId);
+  if(!t)return false;
+  if(!discovered.has(typeId))return false;
+  const offspring=getPrawnstigeOffspringList(typeId);
+  if(!offspring.length)return false;
+  return offspring.every(id=>discovered.has(id));
+}
+
+// Pick 3 random distinct upgrade kinds for the prawnstige overlay
+function rollPrawnstigeChoices(){
+  const pool=[...PRAWNSTIGE_UPGRADE_DEFS];
+  // Fisher-Yates shuffle, take 3
+  for(let i=pool.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [pool[i],pool[j]]=[pool[j],pool[i]];
+  }
+  return pool.slice(0,3);
+}
+
+// When a prawnstige is committed, reset that type's offspring back to undiscovered
+function applyPrawnstige(typeId, chosenUpgrade){
+  const t=getType(typeId);
+  if(!t)return;
+  // Stash the upgrade — pct scales with how many times this shrimp has already prawnstiged
+  if(!prawnstigeUpgrades[typeId])prawnstigeUpgrades[typeId]=[];
+  const currentCount=prawnstigeCount[typeId]||0;
+  const pct=prawnstigePctForTier(t.tier, currentCount);
+  prawnstigeUpgrades[typeId].push({kind:chosenUpgrade.kind, pct});
+  prawnstigeCount[typeId]=currentCount+1;
+  // Reset offspring discoveries
+  const offspring=getPrawnstigeOffspringList(typeId);
+  for(const oid of offspring){
+    if(oid===typeId)continue; // never un-discover the prestiging shrimp itself
+    discovered.delete(oid);
+  }
+  notify(`✨ ${t.name} prawnstiged! +${pct}% ${chosenUpgrade.label}`,'#ffd700');
+  // Re-render shrimpedia if open
+  const spdPanel=document.getElementById('shrimpedia-panel');
+  if(spdPanel?.classList.contains('open')){
+    renderShrimpedia(shrimpediaActiveTier);
+  }
+  updateUI();
+}
+
+let prawnstigeContext=null; // {typeId, choices:[upgrade, upgrade, upgrade]}
+
+function openPrawnstigeOverlay(typeId){
+  const t=getType(typeId);
+  if(!t)return;
+  prawnstigeContext={typeId, choices:rollPrawnstigeChoices()};
+  const currentCount=prawnstigeCount[typeId]||0;
+  const pct=prawnstigePctForTier(t.tier, currentCount);
+  document.getElementById('prawnstige-shrimp-name').innerHTML=`${t.name} <span style="color:rgba(255,255,255,0.5);font-weight:400;font-size:18px;">— Level ${currentCount+1}</span>`;
+  const cardsEl=document.getElementById('prawnstige-cards');
+  cardsEl.innerHTML='';
+  prawnstigeContext.choices.forEach((upg, idx)=>{
+    const card=document.createElement('div');
+    card.className='prawnstige-card';
+    card.innerHTML=`
+      <div class="prawnstige-card-inner">
+        <div class="prawnstige-card-face prawnstige-card-back">
+          <div class="prawnstige-card-back-icon">✨</div>
+          <div class="prawnstige-card-back-label">Reveal</div>
+        </div>
+        <div class="prawnstige-card-face prawnstige-card-front">
+          <div class="prawnstige-card-front-icon">${upg.icon}</div>
+          <div class="prawnstige-card-front-pct">+${pct}%</div>
+          <div class="prawnstige-card-front-label">${upg.label}</div>
+          <div class="prawnstige-card-front-desc">${upg.desc}</div>
+        </div>
+      </div>`;
+    card.addEventListener('mouseenter',()=>card.classList.add('flipped'));
+    card.addEventListener('click',()=>{
+      // Make sure all cards are flipped before commit (so player sees them)
+      card.classList.add('flipped');
+      // Tiny delay so the click flip is visible if not yet flipped
+      setTimeout(()=>{
+        applyPrawnstige(typeId, upg);
+        closePrawnstigeOverlay();
+      },120);
+    });
+    cardsEl.appendChild(card);
+  });
+  document.getElementById('prawnstige-overlay').classList.add('open');
+}
+function closePrawnstigeOverlay(){
+  document.getElementById('prawnstige-overlay').classList.remove('open');
+  prawnstigeContext=null;
+}
+document.getElementById('prawnstige-cancel').addEventListener('click',closePrawnstigeOverlay);
+document.getElementById('prawnstige-overlay').addEventListener('click',e=>{
+  if(e.target.id==='prawnstige-overlay')closePrawnstigeOverlay();
+});
+function toggleNames(){
+  namesEnabled=!namesEnabled;
+  const btn=document.getElementById('names-toggle');
+  if(btn){
+    btn.textContent='🏷 Names: '+(namesEnabled?'ON':'OFF');
+    btn.classList.toggle('off',!namesEnabled);
+  }
+}
+let camX=300,camY=100,camScale=1,isPanning=false,panSX=0,panSY=0,panCX=0,panCY=0;
+let dragS=null,dragOX=0,dragOY=0,targetS=null;
+let lastTs=0;
+let wheelSpinning=false;
+const tankEl=document.getElementById('tank');
+const inner=document.getElementById('tank-inner');
+const shrimpCanvas=document.getElementById('shrimp-canvas');
+const shrimpCtx=shrimpCanvas.getContext('2d');
+// Render at 2x resolution; CSS keeps it sized at world dimensions. Sharper at any zoom.
+const CANVAS_DPR=2;
+const moneyEl=document.getElementById('money-val');
+const shrimpCountEl=document.getElementById('shrimp-count');
+const typesEl=document.getElementById('types-count');
+const breedMsgEl=document.getElementById('breed-msg');
+const tooltipEl=document.getElementById('tooltip');
+const selInfoEl=document.getElementById('sel-info');
+const notifEl=document.getElementById('notif');
+let notifTimer=null;
+
+function getType(id){return TYPES.find(t=>t.id===id);}
+
+function notify(msg,color='#ffd700'){
+  notifEl.textContent=msg;notifEl.style.color=color;notifEl.style.display='block';
+  clearTimeout(notifTimer);notifTimer=setTimeout(()=>notifEl.style.display='none',3000);
+}
+function showBreed(msg,color,dur){
+  breedMsgEl.textContent=msg;breedMsgEl.style.color=color||'#fff';breedMsgEl.style.display='block';
+  if(dur){clearTimeout(breedMsgEl._t);breedMsgEl._t=setTimeout(()=>breedMsgEl.style.display='none',dur);}
+}
+function hideBreed(){if(!breedMsgEl.textContent.startsWith('Global'))breedMsgEl.style.display='none';}
+
+// ── Sprite-based shrimp rendering ─────────────────────────────────────────
+const SPRITE_B64='iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAAAXNSR0IArs4c6QAAAjNJREFUeJzt3LFt20AUBmApyAwBMkFGSO3WC6Rzk7nSuPMCbl1nhEwQIEsohUEgOpDikcrxHvm+r6NEU2fgvZ/HI8HTCQAAAAAAAAAAAAAAoJHnh8fL88Pjpfc4jupD7wHQlwJITgHQxr3nbuf+bUiA5BRAcgogOQWQnAJI7mPvAZSGmf/T2+u591gykADJNUuAoYN1dGwSIDkFkJwCYBtza/vW/vuQAMkpgOQUQHKbrQQuWBe4mgdcLu+b5/PZOkIDEiC5cPcCSkPjl1cIIwkiOVaQAMlt1h211/hPb6+jn//69v1q++ef31V/d1r5P06N92j3NCRAcs2reeikr58+N/2dLy8/pn7/anuug+fGO5I8u04ECZDcYRKgVtnBpaXjnDreXpJBAiQX5iogSkL8L0MyRE8CCZBcmOqcSoi9J0P0JJAAyYWsyn9Fu4pYK2oSSIDkQlXjLeUcYa+JMLcOMdgqKSRAcrtJgEHvOUFtB987vq3mDBIgud0lwODWyuI93TfX4bUduTSpet1llADJhX8msFTzZFHtefqW1h0Y5bkCCZBc+DlAxdPAo/uX+819Xnv8paI/WygBkgs7B9jqzSJziTC139rjRyMBkgubAL1MdexR33UkAZJLkwDeWjZOAiR3mARo3dllgkx9vzcSILlwCRD9HB11XGtJgOTCJUBrrgauSYDkwiXA0o7UyfeRAMmFS4CtSIx3EgAAAAAAAAAAAAAAAAAAAAAAAAAAAKC7v6+I32Y9cGZQAAAAAElFTkSuQmCC';
+const SPRITE_IMG=new Image();
+SPRITE_IMG.src='data:image/png;base64,'+SPRITE_B64;
+
+// Cache of recolored canvases: color+tier -> HTMLCanvasElement (used for canvas draw)
+const spriteCache={};
+
+function getShrimpSpriteCanvas(hexColor, tier){
+  const key=hexColor+'_'+tier;
+  if(spriteCache[key])return spriteCache[key];
+
+  const src=SPRITE_IMG;
+  const W=src.naturalWidth||128, H=src.naturalHeight||128;
+  const offscreen=document.createElement('canvas');
+  offscreen.width=W;offscreen.height=H;
+  const ctx=offscreen.getContext('2d');
+  ctx.drawImage(src,0,0);
+
+  const tr=parseInt(hexColor.slice(1,3),16)/255;
+  const tg=parseInt(hexColor.slice(3,5),16)/255;
+  const tb=parseInt(hexColor.slice(5,7),16)/255;
+
+  const imgData=ctx.getImageData(0,0,W,H);
+  const d=imgData.data;
+  for(let i=0;i<d.length;i+=4){
+    if(d[i+3]<10)continue;
+    const lum=(d[i]*0.299+d[i+1]*0.587+d[i+2]*0.114)/255;
+    d[i]  =Math.round(lum*tr*255*1.6);
+    d[i+1]=Math.round(lum*tg*255*1.6);
+    d[i+2]=Math.round(lum*tb*255*1.6);
+    if(tier>=2){d[i]=Math.min(255,d[i]+15);d[i+1]=Math.min(255,d[i+1]+15);d[i+2]=Math.min(255,d[i+2]+15);}
+    if(tier>=3){d[i]=Math.min(255,d[i]+20);d[i+1]=Math.min(255,d[i+1]+20);d[i+2]=Math.min(255,d[i+2]+20);}
+  }
+  ctx.putImageData(imgData,0,0);
+  spriteCache[key]=offscreen;
+  return offscreen;
+}
+
+// Legacy alias retained for sprite cache use elsewhere (returns data URL on demand)
+function getShrimpCanvas(hexColor, tier){
+  const c=getShrimpSpriteCanvas(hexColor, tier);
+  return c.toDataURL();
+}
+
+// Sprite onload — canvas auto-redraws each frame, no per-shrimp refresh needed
+SPRITE_IMG.onload=()=>{};
+// ──────────────────────────────────────────────────────────────────────────────
+
+
+const SHRIMP_SOFT_CAP=2500;
+let shrimpCapBypass=false; // set during load/ejection so we don't lose existing shrimp
+
+function createShrimp(type,x,y){
+  // Soft cap to prevent the game from grinding to a halt
+  if(!shrimpCapBypass && shrimps.length>=SHRIMP_SOFT_CAP){
+    notify('Tank full ('+SHRIMP_SOFT_CAP+'). Sell some or use the autobreeder.','#ff8888');
+    return null;
+  }
+  const id=nextId++;
+  const t=getType(type);
+  const s={id,type,x:x??100+Math.random()*2100,y:y??100+Math.random()*1300,bcdEnd:0,incomeAccum:Math.random(),wanderTarget:null,wanderTimer:0,flip:false};
+  shrimps.push(s);
+  if(!discovered.has(type)){
+    discovered.add(type);
+    notify('New shrimp discovered: '+t.name+'! 🦐');
+    // Live-update Shrimpedia if it's open
+    const spdPanel=document.getElementById('shrimpedia-panel');
+    if(spdPanel?.classList.contains('open')){
+      renderShrimpedia(shrimpediaActiveTier);
+    }
+  }
+  updateUI();
+  return s;
+}
+
+function removeShrimp(s){
+  shrimps=shrimps.filter(x=>x.id!==s.id);
+  if(selectedId===s.id){selectedId=null;selInfoEl.style.display='none';}
+  updateUI();
+}
+
+function updateCam(){
+  inner.style.transform=`translate(${-camX*camScale}px,${-camY*camScale}px) scale(${camScale})`;
+  inner.style.transformOrigin='0 0';
+}
+
+tankEl.addEventListener('wheel',e=>{
+  e.preventDefault();
+  // Scroll zooms in/out (no Ctrl needed). Hold Shift to pan instead.
+  if(e.shiftKey){
+    camX+=e.deltaX/camScale;camY+=e.deltaY/camScale;updateCam();
+  } else {
+    const rect=tankEl.getBoundingClientRect();
+    const mx=(e.clientX-rect.left)/camScale+camX;
+    const my=(e.clientY-rect.top)/camScale+camY;
+    const delta=e.deltaY>0?0.85:1.18;
+    const ns=Math.min(4,Math.max(0.25,camScale*delta));
+    camX=mx-(e.clientX-rect.left)/ns;
+    camY=my-(e.clientY-rect.top)/ns;
+    camScale=ns;updateCam();
+  }
+},{passive:false});
+
+tankEl.addEventListener('mousedown',e=>{
+  // Middle mouse (button 1) — always pan, never grab a shrimp
+  if(e.button===1){
+    e.preventDefault();
+    if(dragS||draggingMagnet)return;
+    isPanning=true;tankEl.classList.add('grabbing');
+    panSX=e.clientX;panSY=e.clientY;panCX=camX;panCY=camY;
+    return;
+  }
+  if(e.button!==0)return;
+  if(dragS||draggingMagnet)return;
+  // Convert to world coords
+  const rect=tankEl.getBoundingClientRect();
+  const wx=(e.clientX-rect.left)/camScale+camX;
+  const wy=(e.clientY-rect.top)/camScale+camY;
+  // Try hit-testing a shrimp first
+  const s=shrimpAtWorld(wx,wy);
+  if(s){
+    e.preventDefault();
+    dragOX=wx-s.x;dragOY=wy-s.y;dragS=s;
+    selectedId=s.id;updateSelInfo();
+    return;
+  }
+  // No shrimp hit — start panning
+  isPanning=true;tankEl.classList.add('grabbing');
+  panSX=e.clientX;panSY=e.clientY;panCX=camX;panCY=camY;
+  selectedId=null;selInfoEl.style.display='none';
+});
+
+// Suppress middle-click default (auto-scroll cursor) on the tank
+tankEl.addEventListener('auxclick',e=>{if(e.button===1)e.preventDefault();});
+
+document.addEventListener('mousemove',e=>{
+  const rect=tankEl.getBoundingClientRect();
+  if(draggingMagnet){
+    const wx=(e.clientX-rect.left)/camScale+camX-draggingMagnet.offsetX;
+    const wy=(e.clientY-rect.top)/camScale+camY-draggingMagnet.offsetY;
+    const m=draggingMagnet.magnet;
+    m.x=Math.max(0,Math.min(TANK_W-80,wx));
+    m.y=Math.max(0,Math.min(TANK_H-80,wy));
+    m.el.style.left=m.x+'px';
+    m.el.style.top=m.y+'px';
+    return;
+  }
+  if(dragS){
+    const wx=(e.clientX-rect.left)/camScale+camX-dragOX;
+    const wy=(e.clientY-rect.top)/camScale+camY-dragOY;
+    dragS.x=Math.max(0,Math.min(TANK_W-50,wx));
+    dragS.y=Math.max(0,Math.min(TANK_H-60,wy));
+    targetS=null;
+    for(const s of shrimps){
+      if(s.id===dragS.id)continue;
+      const dx=s.x-dragS.x,dy=s.y-dragS.y;
+      if(Math.sqrt(dx*dx+dy*dy)<50){targetS=s;break;}
+    }
+    // Clear all target highlight flags
+    for(const s of shrimps){s.targetOk=false;s.targetBad=false;}
+    // Clear any prior autobreeder slot highlight
+    if(autobreeder?.el){
+      autobreeder.el.querySelectorAll('.ab-slot').forEach(el=>el.classList.remove('ab-slot-ok','ab-slot-bad'));
+    }
+    // Clear magnet taskbar slot highlights
+    document.querySelectorAll('.mtb-slot').forEach(el=>el.classList.remove('magnet-slot-ok','magnet-slot-bad'));
+    if(cave)cave.el.classList.remove('cave-target-ok');
+    if(targetS){
+      const r=canBreed(dragS,targetS);
+      targetS.targetOk=r.ok;
+      targetS.targetBad=!r.ok;
+      showBreed(r.ok?'Release to breed!':r.why, r.ok?'#00ff88':'#ff8888');
+    } else if(autobreeder){
+      // Check if hovering over an autobreeder slot
+      const sx=dragS.x, sy=dragS.y, ax=autobreeder.x, ay=autobreeder.y;
+      let slotIdx=-1;
+      if(sy>=ay-20&&sy<=ay+120){
+        if(sx>=ax+5&&sx<=ax+75) slotIdx=0;
+        else if(sx>=ax+95&&sx<=ax+165) slotIdx=1;
+      }
+      if(slotIdx!==-1){
+        const occupied=!!autobreeder.slots[slotIdx];
+        const t=getType(dragS.type);
+        const tierTotal=shrimps.filter(x=>getType(x.type)?.tier===t.tier).length;
+        const tierBlocked=tierTotal<=1;
+        const slotEl=autobreeder.el.querySelector(`.ab-slot[data-slot="${slotIdx}"]`);
+        if(slotEl){
+          if(occupied||tierBlocked){
+            slotEl.classList.add('ab-slot-bad');
+            showBreed(occupied?'Slot already filled':'Need at least 1 of this tier in tank!','#ff8888');
+          } else {
+            slotEl.classList.add('ab-slot-ok');
+            showBreed('Drop into autobreeder slot','#00ff88');
+          }
+        }
+      } else {
+        if(!caveHover(dragS) && !magnetTaskbarHover(e.clientX,e.clientY))hideBreed();
+      }
+    } else {
+      if(!caveHover(dragS) && !magnetTaskbarHover(e.clientX,e.clientY))hideBreed();
+    }
+  } else if(isPanning){
+    camX=panCX-(e.clientX-panSX)/camScale;
+    camY=panCY-(e.clientY-panSY)/camScale;
+    updateCam();
+  }
+  tooltipEl.style.display='none';
+});
+
+document.addEventListener('mouseup',e=>{
+  if(draggingMagnet){
+    draggingMagnet.magnet.el.classList.remove('magnet-dragging');
+    draggingMagnet=null;
+  }
+  if(dragS){
+    for(const s of shrimps){s.targetOk=false;s.targetBad=false;}
+    if(autobreeder?.el){
+      autobreeder.el.querySelectorAll('.ab-slot').forEach(el=>el.classList.remove('ab-slot-ok','ab-slot-bad'));
+    }
+    document.querySelectorAll('.mtb-slot').forEach(el=>el.classList.remove('magnet-slot-ok','magnet-slot-bad'));
+    if(cave)cave.el.classList.remove('cave-target-ok');
+    // Check if dropped onto an autobreeder slot first
+    const dropped=dragS;
+    let consumed=false;
+    if(targetS){
+      const r=canBreed(dragS,targetS);
+      if(r.ok){doBreed(dragS,targetS);consumed=true;}
+      else showBreed(r.why,'#ff8888',2500);
+    }
+    if(!consumed){
+      consumed=checkAutobreederDrop(dropped);
+    }
+    if(!consumed){
+      consumed=checkCaveDrop(dropped);
+    }
+    if(!consumed){
+      checkMagnetDrop(dropped, e.clientX, e.clientY);
+    }
+    dragS=null;targetS=null;hideBreed();
+  }
+  if(isPanning){isPanning=false;tankEl.classList.remove('grabbing');}
+});
+
+// ---- Breeding Wheel ----
+const wheelWrap=document.getElementById('breed-wheel-wrap');
+const wheelCanvas=document.getElementById('breed-wheel-canvas');
+const wheelCtx=wheelCanvas.getContext('2d');
+const wheelResultDot=document.getElementById('wheel-result-dot');
+const wheelResultLabel=document.getElementById('wheel-result-label');
+let wheelAnim=null;
+
+function lightenColor(hex,amt){
+  const n=parseInt(hex.slice(1),16);
+  const r=Math.min(255,((n>>16)&0xff)+Math.round(255*amt));
+  const g=Math.min(255,((n>>8)&0xff)+Math.round(255*amt));
+  const b=Math.min(255,(n&0xff)+Math.round(255*amt));
+  return `rgb(${r},${g},${b})`;
+}
+
+function spinWheel(segments, winIndex, onDone){
+  wheelSpinning=true;
+  // segments: [{label, color, weight}], winIndex: which one the pointer lands on
+  wheelWrap.style.display='block';
+  wheelResultDot.style.display='none';
+  wheelResultLabel.textContent='Spinning...';
+  wheelResultLabel.style.color='rgba(255,255,255,0.5)';
+  const W=186,H=186,cx=W/2,cy=H/2,r=78;
+
+  // Compute arc sizes from weights
+  const totalW=segments.reduce((s,x)=>s+x.weight,0);
+  const arcs=segments.map(s=>s.weight/totalW*Math.PI*2);
+  // Compute start angle of each segment
+  const starts=[];let acc=0;
+  for(const a of arcs){starts.push(acc);acc+=a;}
+  // midAngle of winner segment
+  const winMid=starts[winIndex]+arcs[winIndex]/2;
+  // We want winMid + finalRotation = -π/2 (top, where pointer is)
+  // finalRotation = -π/2 - winMid + N*2π (choose N so we spin multiple times)
+  const N=6+Math.floor(Math.random()*3);
+  const finalRotation=-Math.PI/2 - winMid + N*Math.PI*2;
+
+  const dur=3200;
+  const start=performance.now();
+  // Ease out cubic
+  function ease(t){return 1-Math.pow(1-t,3);}
+
+  function draw(rot, done){
+    wheelCtx.clearRect(0,0,W,H);
+    // Draw segments
+    for(let i=0;i<segments.length;i++){
+      const s=starts[i]+rot, e=s+arcs[i];
+      const isWinner=done&&i===winIndex;
+      wheelCtx.beginPath();wheelCtx.moveTo(cx,cy);
+      wheelCtx.arc(cx,cy,r,s,e);wheelCtx.closePath();
+      // Unknown segments stay grey until the wheel lands on them (reveal on win)
+      const showUnknown=segments[i].unknown&&!(done&&i===winIndex);
+      const drawColor=showUnknown?'#5a5a5a':(segments[i].realColor||segments[i].color);
+      const drawLabel=showUnknown?'???':(segments[i].realLabel||segments[i].label);
+      wheelCtx.fillStyle=isWinner?lightenColor(drawColor,0.3):drawColor;
+      wheelCtx.fill();
+      wheelCtx.strokeStyle='rgba(0,0,0,0.5)';wheelCtx.lineWidth=2;wheelCtx.stroke();
+      if(isWinner){
+        wheelCtx.beginPath();wheelCtx.moveTo(cx,cy);
+        wheelCtx.arc(cx,cy,r,s,e);wheelCtx.closePath();
+        wheelCtx.strokeStyle='#ffd700';wheelCtx.lineWidth=3;wheelCtx.stroke();
+      }
+      const midA=starts[i]+arcs[i]/2+rot;
+      const tx=cx+Math.cos(midA)*r*0.65;
+      const ty=cy+Math.sin(midA)*r*0.65;
+      wheelCtx.beginPath();wheelCtx.arc(tx,ty-6,4,0,Math.PI*2);
+      wheelCtx.fillStyle='rgba(0,0,0,0.4)';wheelCtx.fill();
+      wheelCtx.beginPath();wheelCtx.arc(tx,ty-6,3.5,0,Math.PI*2);
+      wheelCtx.fillStyle=drawColor;wheelCtx.fill();
+      wheelCtx.strokeStyle='rgba(255,255,255,0.8)';wheelCtx.lineWidth=0.8;wheelCtx.stroke();
+      wheelCtx.fillStyle='rgba(255,255,255,0.95)';
+      wheelCtx.font=(isWinner?'bold ':'')+'9px system-ui';
+      wheelCtx.textAlign='center';wheelCtx.textBaseline='middle';
+      wheelCtx.fillText(drawLabel.replace(' Shrimp',''),tx,ty+5);
+    }
+    // Pointer at top
+    wheelCtx.beginPath();
+    wheelCtx.moveTo(cx,cy-r+2);
+    wheelCtx.lineTo(cx-9,cy-r-14);
+    wheelCtx.lineTo(cx+9,cy-r-14);
+    wheelCtx.closePath();
+    wheelCtx.fillStyle='#ffd700';wheelCtx.fill();
+    wheelCtx.strokeStyle='#996600';wheelCtx.lineWidth=1;wheelCtx.stroke();
+    // Hub
+    wheelCtx.beginPath();wheelCtx.arc(cx,cy,9,0,Math.PI*2);
+    wheelCtx.fillStyle='rgba(5,15,30,0.95)';wheelCtx.fill();
+    wheelCtx.strokeStyle='rgba(255,255,255,0.25)';wheelCtx.lineWidth=1.5;wheelCtx.stroke();
+  }
+
+  if(wheelAnim)cancelAnimationFrame(wheelAnim);
+  function frame(ts){
+    const t=Math.min((ts-start)/dur,1);
+    draw(ease(t)*finalRotation, false);
+    if(t<1){wheelAnim=requestAnimationFrame(frame);}
+    else{
+      draw(finalRotation, true);
+      const winner=segments[winIndex];
+      wheelResultDot.style.display='inline-block';
+      wheelResultDot.style.background=winner.realColor||winner.color;
+      const revealName=winner.realLabel||winner.label;
+      wheelResultLabel.textContent=winner.unknown?'✨ '+revealName:revealName;
+      wheelResultLabel.style.color='#ffd700';
+      setTimeout(()=>{wheelWrap.style.display='none';wheelSpinning=false;onDone();},1500);
+    }
+  }
+  wheelAnim=requestAnimationFrame(frame);
+}
+
+function spawnCoin(x,y,val,sourceType){
+  const div=document.createElement('div');
+  div.className='coin';div.textContent='$';
+  // Clamp to tank bounds (coins are 20px wide so leave a little margin)
+  const cx=Math.max(10,Math.min(TANK_W-30,x+Math.random()*40-20));
+  const startY=Math.max(10,Math.min(TANK_H-80,y-30+Math.random()*20));
+  const sandY=TANK_H-60;
+  div.style.left=cx+'px';
+  div.style.top=startY+'px';
+  div.addEventListener('mouseenter',()=>{
+    tooltipEl.style.display='block';
+    tooltipEl.style.left=(event.clientX+12)+'px';
+    tooltipEl.style.top=(event.clientY-10)+'px';
+    tooltipEl.textContent='+$'+val.toFixed(2);
+  });
+  div.addEventListener('mouseleave',()=>tooltipEl.style.display='none');
+  div.addEventListener('click',()=>{
+    money+=val;moneyEl.textContent=Math.floor(money).toLocaleString();
+    div.remove();coins=coins.filter(c=>c.el!==div);
+    tooltipEl.style.display='none';
+  });
+  inner.appendChild(div);
+  const c={el:div,val,born:Date.now(),cx:cx,cy:startY,vy:8+Math.random()*12,sunk:false,collected:false,sourceType:sourceType||null};
+  coins.push(c);
+}
+
+function updateSelInfo(){
+  const s=shrimps.find(x=>x.id===selectedId);
+  if(!s){selInfoEl.style.display='none';return;}
+  const t=getType(s.type);
+  selInfoEl.style.display='block';
+  document.getElementById('si-name').textContent=t.name;
+  document.getElementById('si-income').textContent='$'+t.income.toFixed(2)+'/s';
+  document.getElementById('si-tier').textContent='Tier '+t.tier;
+  const now=Date.now();
+  const left=Math.max(0,s.bcdEnd-now);
+  document.getElementById('si-bcd').textContent=left>0?Math.ceil(left/1000)+'s':'Ready';
+  const pct=left>0?(left/t.bcd*100):0;
+  document.getElementById('si-cd-fill').style.width=Math.round(pct)+'%';
+  document.getElementById('si-cd-lbl').textContent=left>0?'Resting after breeding...':'Ready to breed';
+}
+
+// Collapsible tier sections - click header to expand/collapse body
+document.querySelectorAll('.tier-header').forEach(h=>{
+  h.addEventListener('click',()=>{
+    const body=h.nextElementSibling;
+    const nowCollapsed=body.classList.toggle('collapsed');
+    for(const node of h.childNodes){
+      if(node.nodeType===3){
+        node.textContent=node.textContent.replace(/[▶▼]/,nowCollapsed?'▶':'▼');
+        break;
+      }
+    }
+  });
+});
+// Sub-tier toggles inside Shop
+document.querySelectorAll('.sub-tier-header').forEach(h=>{
+  h.addEventListener('click',e=>{
+    e.stopPropagation();
+    const body=h.nextElementSibling;
+    const nowCollapsed=body.classList.toggle('collapsed');
+    h.textContent=h.textContent.replace(/[▶▼]/,nowCollapsed?'▶':'▼');
+  });
+});
+
+function updateUI(){
+  shrimpCountEl.textContent=shrimps.length;
+  typesEl.textContent=discovered.size;
+  // Mantis stat — only visible when mantises exist
+  const mStatEl=document.getElementById('mantis-stat');
+  const mCountEl=document.getElementById('mantis-count');
+  if(mStatEl&&mCountEl){
+    if(mantises.length>0){
+      mStatEl.style.display='';
+      mCountEl.textContent=mantises.length;
+    } else {
+      mStatEl.style.display='none';
+    }
+  }
+  renderInventory();renderShop();renderUpgrades();
+}
+
+// Get current market price (rounded to whole dollars). Falls back to base if not initialized.
+function marketPrice(typeId){
+  if(stockPrices[typeId]!==undefined)return Math.max(1,Math.round(stockPrices[typeId]));
+  const t=getType(typeId);
+  return t?Math.round(basePrice(t)):1;
+}
+
+function renderInventory(){
+  const counts={};
+  for(const s of shrimps)counts[s.type]=(counts[s.type]||0)+1;
+
+  for(const tier of [1,2,3]){
+    const body=document.getElementById(`inv-t${tier}-body`);
+    const countEl=document.getElementById(`t${tier}-count`);
+    body.innerHTML='';
+    let totalOwned=0;
+    // All discovered types of this tier (whether owned or not)
+    const tierDiscovered=TYPES.filter(t=>t.tier===tier&&discovered.has(t.id));
+    // Tier total ownership — when selling from this tier, must keep >=1 in tier
+    const tierTotalOwned=shrimps.filter(s=>getType(s.type)?.tier===tier).length;
+
+    for(const t of tierDiscovered){
+      // Filter by search query
+      if(invSearchQuery && !t.name.toLowerCase().includes(invSearchQuery))continue;
+      const cnt=counts[t.id]||0;
+      totalOwned+=cnt;
+      const px=marketPrice(t.id);
+      const canAfford=money>=px;
+      const canSell=cnt>0 && tierTotalOwned>1;
+      const sellPrice=px;
+
+      const d=document.createElement('div');
+      d.className='shrimp-card'+(canAfford?' affordable':'');
+      d.innerHTML=`<div class="sc-name"><span class="sc-dot" style="background:${t.color}"></span>${t.name} <span class="sc-count">×${cnt}</span></div>
+      <div class="sc-info">Market: $${px.toLocaleString()}</div>
+      <div class="sc-actions">
+        <div class="buy-btn${canAfford?'':' disabled'}" data-type="${t.id}">Buy ($${px.toLocaleString()})</div>
+        ${canSell
+          ? `<div class="sell-btn" data-type="${t.id}">Sell ($${sellPrice.toLocaleString()})</div>`
+          : (cnt>0 ? `<div class="sell-btn-disabled">Last in tier</div>` : '')}
+      </div>`;
+
+      const buyBtn=d.querySelector('.buy-btn');
+      if(buyBtn)buyBtn.addEventListener('click',e=>{e.stopPropagation();
+        const cur=marketPrice(t.id);
+        if(money>=cur){
+          money-=cur;moneyEl.textContent=Math.floor(money).toLocaleString();
+          createShrimp(t.id);marketImpact(t.id,1,true);updateUI();
+        } else notify('Not enough money!','#ff8888');
+      });
+
+      const sb=d.querySelector('.sell-btn');
+      if(sb)sb.addEventListener('click',e=>{e.stopPropagation();
+        const curTotal=shrimps.filter(x=>getType(x.type)?.tier===tier).length;
+        if(curTotal<=1){notify('Need at least 1 of this tier!','#ff8888');return;}
+        const s=shrimps.find(x=>x.type===t.id);
+        if(s){
+          const px2=marketPrice(t.id);
+          money+=px2;moneyEl.textContent=Math.floor(money).toLocaleString();
+          marketImpact(t.id,1,false);removeShrimp(s);
+        }
+      });
+
+      body.appendChild(d);
+    }
+    countEl.textContent=totalOwned?`${totalOwned} owned`:'';
+    document.getElementById(`inv-t${tier}`).style.display=tierDiscovered.length?'block':'none';
+  }
+}
+
+function renderShop(){
+  // Shop merged into inventory cards — no separate UI
+}
+
+// Bubbles and plants
+for(let i=0;i<18;i++){
+  const b=document.createElement('div');b.className='bubble';
+  const sz=3+Math.random()*14;
+  b.style.cssText=`width:${sz}px;height:${sz}px;left:${Math.random()*100}%;bottom:${60+Math.random()*400}px;animation-duration:${7+Math.random()*12}s;animation-delay:${-Math.random()*15}s;`;
+  inner.appendChild(b);
+}
+const plantPositions=[120,350,600,900,1200,1500,1800,2100];
+const plantColors=['#1a6b2a','#2a8b3a','#1e7a30','#158025'];
+for(const px of plantPositions){
+  const p=document.createElement('div');p.className='plant';
+  const h=60+Math.random()*80;const c=plantColors[Math.floor(Math.random()*plantColors.length)];
+  p.style.left=px+'px';
+  p.innerHTML=`<svg width="30" height="${h}" viewBox="0 0 30 ${h}">
+    <path d="M15 ${h} Q10 ${h*0.6} 5 ${h*0.3} Q15 ${h*0.35} 15 ${h*0.5}" fill="${c}" opacity="0.85"/>
+    <path d="M15 ${h} Q20 ${h*0.5} 25 ${h*0.2} Q15 ${h*0.3} 15 ${h*0.5}" fill="${c}" opacity="0.85"/>
+    <path d="M15 ${h} Q12 ${h*0.4} 8 ${h*0.1} Q15 ${h*0.2} 15 ${h*0.4}" fill="${c}" opacity="0.7"/>
+    <line x1="15" y1="${h}" x2="15" y2="${h*0.15}" stroke="${c}" stroke-width="2" opacity="0.6"/>
+  </svg>`;
+  inner.appendChild(p);
+}
+
+// Pebbles on sand
+for(let i=0;i<40;i++){
+  const peb=document.createElement('div');
+  const w=6+Math.random()*14,h=4+Math.random()*8;
+  peb.style.cssText=`position:absolute;bottom:${62+Math.random()*20}px;left:${Math.random()*2380}px;width:${w}px;height:${h}px;border-radius:50%;background:rgba(${100+Math.random()*60},${80+Math.random()*50},${40+Math.random()*30},0.6);`;
+  inner.appendChild(peb);
+}
+
+// ── Canvas Shrimp Renderer ──────────────────────────────────────────────────
+// Draws every visible shrimp on a single canvas. ~one drawcall per visible shrimp.
+// Way faster than DOM elements for thousands of entities.
+const SHRIMP_DRAW_W=64, SHRIMP_DRAW_H=64;
+
+function drawShrimpCanvas(){
+  const ctx=shrimpCtx;
+  // Reset and clear in pixel space
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.clearRect(0,0,shrimpCanvas.width,shrimpCanvas.height);
+  // Apply DPR + camera: world coords map to pixels via (worldX - camX) * camScale * DPR
+  const s=camScale*CANVAS_DPR;
+  ctx.setTransform(s,0,0,s,-camX*s,-camY*s);
+  ctx.imageSmoothingEnabled=false;
+
+  // Compute visible-world bounding box for culling
+  const tankRect=tankEl.getBoundingClientRect();
+  const viewLeft=camX-100;
+  const viewTop=camY-100;
+  const viewRight=camX+(tankRect.width)/camScale+100;
+  const viewBottom=camY+(tankRect.height)/camScale+100;
+  const showLabels=namesEnabled && camScale>=0.55;
+  const now=Date.now();
+  const spriteReady=SPRITE_IMG.complete&&SPRITE_IMG.naturalWidth>0;
+
+  // Set font once for labels
+  if(showLabels){
+    ctx.font='600 11px system-ui,sans-serif';
+    ctx.textAlign='center';
+    ctx.textBaseline='alphabetic';
+  }
+
+  for(const s of shrimps){
+    if(s.x<viewLeft||s.x>viewRight||s.y<viewTop||s.y>viewBottom)continue;
+    const t=getType(s.type);
+    if(!t)continue;
+
+    const isDragging=(s===dragS);
+    const isSelected=(s.id===selectedId);
+    if(isDragging)ctx.globalAlpha=0.85;
+
+    // Sprite (cached per-color/tier canvas) — apply colored glow via shadow
+    if(spriteReady){
+      const sprite=getShrimpSpriteCanvas(t.color,t.tier);
+      // Glow effect for selection / drag / target states
+      let glowColor=null;
+      if(s.targetOk) glowColor='#00ff88';
+      else if(s.targetBad) glowColor='#ff4444';
+      else if(isDragging||isSelected) glowColor='#ffd700';
+      if(glowColor){
+        ctx.shadowColor=glowColor;
+        ctx.shadowBlur=12;
+      }
+      if(s.flip){
+        ctx.save();
+        ctx.translate(s.x+SHRIMP_DRAW_W,s.y);
+        ctx.scale(-1,1);
+        ctx.drawImage(sprite,0,0,SHRIMP_DRAW_W,SHRIMP_DRAW_H);
+        ctx.restore();
+      } else {
+        ctx.drawImage(sprite,s.x,s.y,SHRIMP_DRAW_W,SHRIMP_DRAW_H);
+      }
+      if(glowColor){
+        ctx.shadowBlur=0;
+        ctx.shadowColor='transparent';
+      }
+    }
+    if(isDragging)ctx.globalAlpha=1;
+
+    // Labels and cooldown text
+    if(showLabels){
+      const labelX=s.x+SHRIMP_DRAW_W/2;
+      const labelY=s.y-4;
+
+      // Cooldown pill (rendered above the name) — softer color, rounded corners
+      const cdLeft=s.bcdEnd-now;
+      if(cdLeft>0){
+        ctx.font='600 10px system-ui,sans-serif';
+        const cdText=Math.ceil(cdLeft/1000)+'s';
+        const ctw=ctx.measureText(cdText).width;
+        const cdW=ctw+10, cdH=14;
+        const cdX=labelX-cdW/2, cdY=labelY-26;
+        ctx.fillStyle='rgba(20,40,75,0.92)';
+        roundRect(ctx,cdX,cdY,cdW,cdH,4);ctx.fill();
+        ctx.fillStyle='#9ec9ff';
+        ctx.textBaseline='middle';
+        ctx.fillText(cdText,labelX,cdY+cdH/2+0.5);
+        ctx.textBaseline='alphabetic';
+      }
+
+      // Name label — subtle dark pill, no harsh edges
+      ctx.font='600 11px system-ui,sans-serif';
+      const labelText=t.name;
+      const tw=ctx.measureText(labelText).width;
+      const lblW=tw+10, lblH=15;
+      const lblX=labelX-lblW/2, lblY=labelY-12;
+      ctx.fillStyle='rgba(5,15,30,0.82)';
+      roundRect(ctx,lblX,lblY,lblW,lblH,4);ctx.fill();
+      ctx.fillStyle='rgba(255,255,255,0.92)';
+      ctx.textBaseline='middle';
+      ctx.fillText(labelText,labelX,lblY+lblH/2+0.5);
+      ctx.textBaseline='alphabetic';
+    }
+  }
+
+  // Draw mantises (large predators)
+  for(const m of mantises){
+    if(m.x+MANTIS_DRAW<viewLeft||m.x>viewRight||m.y+MANTIS_DRAW<viewTop||m.y>viewBottom)continue;
+    if(spriteReady){
+      // Mantis uses a deep red/maroon recolor of the shrimp sprite
+      const sprite=getShrimpSpriteCanvas('#a83a4a',3);
+      // Hunger-based glow: redder/pulsing when starving
+      const hungerT=Math.max(0,Math.min(1,1-m.hunger/MANTIS_HUNGER_MAX));
+      if(hungerT>0.5){
+        const pulse=0.5+0.5*Math.sin(performance.now()*0.006);
+        ctx.shadowColor='#ff3030';
+        ctx.shadowBlur=8+12*hungerT*pulse;
+      }
+      if(m.flip){
+        ctx.save();
+        ctx.translate(m.x+MANTIS_DRAW,m.y);
+        ctx.scale(-1,1);
+        ctx.drawImage(sprite,0,0,MANTIS_DRAW,MANTIS_DRAW);
+        ctx.restore();
+      } else {
+        ctx.drawImage(sprite,m.x,m.y,MANTIS_DRAW,MANTIS_DRAW);
+      }
+      if(hungerT>0.5){
+        ctx.shadowBlur=0;
+        ctx.shadowColor='transparent';
+      }
+    }
+    // Nameplate above mantis
+    if(showLabels){
+      const labelX=m.x+MANTIS_HALF;
+      const labelY=m.y-6;
+      ctx.font='700 14px system-ui,sans-serif';
+      const labelText='Mantis Shrimp';
+      const tw=ctx.measureText(labelText).width;
+      const lblW=tw+14, lblH=20;
+      const lblX=labelX-lblW/2, lblY=labelY-16;
+      ctx.fillStyle='rgba(60,5,15,0.9)';
+      roundRect(ctx,lblX,lblY,lblW,lblH,5);ctx.fill();
+      ctx.strokeStyle='rgba(255,80,80,0.45)';ctx.lineWidth=1;ctx.stroke();
+      ctx.fillStyle='#ffb0b0';
+      ctx.textBaseline='middle';
+      ctx.fillText(labelText,labelX,lblY+lblH/2+0.5);
+      ctx.textBaseline='alphabetic';
+      ctx.font='600 11px system-ui,sans-serif';
+    }
+  }
+}
+
+// Helper: rounded rectangle path (single declaration, reused per draw call)
+function roundRect(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);
+  ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
+
+// Pick the topmost shrimp at a given world coordinate (returns shrimp or null)
+function shrimpAtWorld(wx,wy){
+  // Iterate in reverse so later-drawn (z-order top) is hit first
+  for(let i=shrimps.length-1;i>=0;i--){
+    const s=shrimps[i];
+    if(wx>=s.x&&wx<=s.x+SHRIMP_DRAW_W&&wy>=s.y&&wy<=s.y+SHRIMP_DRAW_H){
+      return s;
+    }
+  }
+  return null;
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
+function gameLoop(ts){
+  // Pause entirely if tab is hidden — don't accumulate anything
+  if(document.hidden){
+    lastTs=ts; // keep lastTs current so we don't jump on resume
+    requestAnimationFrame(gameLoop);
+    return;
+  }
+  let dt=(ts-lastTs)/1000;
+  lastTs=ts;
+  // Clamp dt so even brief stalls or browser throttling don't cause massive jumps
+  if(dt>0.1)dt=0.1;
+  const now=Date.now();
+
+  // Passive coin drops — each shrimp drops a coin periodically (faster for higher tiers)
+  for(const s of shrimps){
+    const t=getType(s.type);
+    // coin_interval upgrade: faster spawn (reduces interval)
+    const intervalBonus=getPrawnstigeBonus(s.type,'coin_interval')/100;
+    const interval=(12+t.tier*6)/(1+intervalBonus);
+    s.incomeAccum=(s.incomeAccum||0)+dt/interval;
+    if(s.incomeAccum>=1){
+      s.incomeAccum-=1;
+      // coin_value upgrade: higher value per coin
+      const valueBonus=getPrawnstigeBonus(s.type,'coin_value')/100;
+      const coinVal=Math.max(1,Math.round(marketPrice(s.type)*0.05*(1+valueBonus)));
+      spawnCoin(s.x+25,s.y,coinVal,s.type);
+      // extra_coin_chance upgrade: roll for a bonus coin
+      const extraChance=getPrawnstigeBonus(s.type,'extra_coin_chance')/100;
+      if(extraChance>0 && Math.random()<extraChance){
+        spawnCoin(s.x+25+(Math.random()-0.5)*30,s.y,coinVal,s.type);
+      }
+    }
+  }
+
+
+  // Coin sinking physics & despawn
+  const sandY=TANK_H-65;
+  for(const c of [...coins]){
+    if(c.collected)continue;
+    const age=(now-c.born)/1000;
+    if(!c.sunk){
+      // sink with drag
+      c.vy=Math.min(c.vy+20*dt, 60);
+      c.cy+=c.vy*dt;
+      if(c.cy>=sandY){c.cy=sandY;c.sunk=true;c.sunkAt=now;}
+      c.el.style.top=c.cy+'px';
+    }
+    // Despawn after 18s on sand: fade then remove (coin is LOST, no money).
+    // coin_lifespan upgrade extends both the start-of-fade and full-removal times.
+    if(c.sunk){
+      const sunkAge=(now-c.sunkAt)/1000;
+      const lifeBonus=c.sourceType?getPrawnstigeBonus(c.sourceType,'coin_lifespan')/100:0;
+      const fadeStart=14*(1+lifeBonus);
+      const fadeEnd=18*(1+lifeBonus);
+      if(sunkAge>fadeStart){
+        const fadeT=Math.max(0,1-(sunkAge-fadeStart)/(fadeEnd-fadeStart));
+        c.el.style.opacity=fadeT.toFixed(2);
+        if(sunkAge>fadeEnd){
+          c.el.remove();c.collected=true;coins=coins.filter(x=>x!==c);
+        }
+      }
+    }
+  }
+
+  // Wander — pure data updates; rendering happens via drawShrimpCanvas()
+  for(const s of shrimps){
+    if(s.id===dragS?.id)continue;
+    if(!s.wanderTarget||s.wanderTimer<=0){
+      s.wanderTarget={x:50+Math.random()*(TANK_W-150),y:50+Math.random()*(TANK_H-200)};
+      s.wanderTimer=3+Math.random()*7;
+    }
+    s.wanderTimer-=dt;
+    const dx=s.wanderTarget.x-s.x,dy=s.wanderTarget.y-s.y;
+    const dist=Math.sqrt(dx*dx+dy*dy);
+    if(dist>5){
+      const spd=25+getType(s.type).tier*12;
+      s.x+=dx/dist*spd*dt;s.y+=dy/dist*spd*dt;
+      s.flip=dx>0;
+    }
+  }
+
+  // Render all shrimp on canvas (handles culling + labels + cooldowns internally)
+  drawShrimpCanvas();
+
+  updateSelInfo();
+  tickStocks(dt);
+  tickSnails(dt);
+  tickAutobreeder(dt);
+  tickMagnets(dt);
+  tickMantises(dt);
+  requestAnimationFrame(gameLoop);
+}
+
+// ── Panel toggles ────────────────────────────────────────────────────────────
+function toggleLeftPanel(){
+  const sb=document.getElementById('sidebar');
+  const tank=document.getElementById('tank');
+  const btn=document.getElementById('left-toggle');
+  const wheel=document.getElementById('breed-wheel-wrap');
+  const collapsed=sb.classList.toggle('collapsed');
+  tank.classList.toggle('left-collapsed',collapsed);
+  btn.classList.toggle('collapsed',collapsed);
+  wheel.classList.toggle('left-collapsed',collapsed);
+  btn.textContent=collapsed?'›':'‹';
+  setTimeout(resizeShrimpCanvas,260); // after CSS transition
+}
+function toggleRightPanel(){
+  const sp=document.getElementById('stock-panel');
+  const tank=document.getElementById('tank');
+  const btn=document.getElementById('right-toggle');
+  const sel=document.getElementById('sel-info');
+  const collapsed=sp.classList.toggle('collapsed');
+  tank.classList.toggle('right-collapsed',collapsed);
+  btn.classList.toggle('collapsed',collapsed);
+  sel.classList.toggle('right-collapsed',collapsed);
+  btn.textContent=collapsed?'‹':'›';
+  setTimeout(resizeShrimpCanvas,260);
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── Shrimpedia ────────────────────────────────────────────────────────────────
+let shrimpediaActiveTier=1;
+let shrimpediaIsPopped=false;
+
+function updateMagnetTaskbarPosition(){
+  const bar=document.getElementById('magnet-taskbar');
+  const panel=document.getElementById('shrimpedia-panel');
+  const isOpen=panel.classList.contains('open');
+  const isPopped=panel.classList.contains('popped');
+  const shouldShift=isOpen && !isPopped;
+  // Shift breeding wheel
+  const wheel=document.getElementById('breed-wheel-wrap');
+  if(wheel)wheel.classList.toggle('shrimpedia-shifted',shouldShift);
+  if(!bar)return;
+  if(!mtbDocked)return;
+  bar.style.bottom=shouldShift?'calc(33vh + 8px)':'42px';
+}
+
+function toggleShrimpedia(){
+  const panel=document.getElementById('shrimpedia-panel');
+  const handle=document.getElementById('shrimpedia-handle');
+  const isOpen=panel.classList.toggle('open');
+  if(shrimpediaIsPopped){
+    handle.classList.remove('shifted');
+    handle.innerHTML='<span style="display:inline-block;transform:rotate(90deg);font-size:16px;line-height:1;">‹</span>';
+  } else {
+    handle.classList.toggle('shifted',isOpen);
+    handle.innerHTML=isOpen
+      ? '<span style="display:inline-block;transform:rotate(90deg);font-size:16px;line-height:1;">›</span>'
+      : '<span style="display:inline-block;transform:rotate(90deg);font-size:16px;line-height:1;">‹</span>';
+  }
+  if(isOpen)renderShrimpedia(shrimpediaActiveTier);
+  updateMagnetTaskbarPosition();
+}
+function openShrimpedia(){
+  const panel=document.getElementById('shrimpedia-panel');
+  const handle=document.getElementById('shrimpedia-handle');
+  panel.classList.add('open');
+  if(!shrimpediaIsPopped){
+    handle.classList.add('shifted');
+    handle.innerHTML='<span style="display:inline-block;transform:rotate(90deg);font-size:16px;line-height:1;">›</span>';
+  }
+  renderShrimpedia(shrimpediaActiveTier);
+  updateMagnetTaskbarPosition();
+}
+function closeShrimpedia(){
+  const handle=document.getElementById('shrimpedia-handle');
+  document.getElementById('shrimpedia-panel').classList.remove('open');
+  handle.classList.remove('shifted');
+  handle.innerHTML='<span style="display:inline-block;transform:rotate(90deg);font-size:16px;line-height:1;">‹</span>';
+  updateMagnetTaskbarPosition();
+}
+
+function toggleShrimpediaPopout(){
+  const panel=document.getElementById('shrimpedia-panel');
+  const handle=document.getElementById('shrimpedia-handle');
+  shrimpediaIsPopped=!shrimpediaIsPopped;
+  panel.classList.toggle('popped',shrimpediaIsPopped);
+  const btn=document.getElementById('spd-popout-btn');
+  btn.textContent=shrimpediaIsPopped?'⧈ Dock':'⧉ Pop out';
+  btn.title=shrimpediaIsPopped?'Re-dock to bottom':'Detach into a movable window';
+  if(!shrimpediaIsPopped){
+    panel.style.left='';panel.style.top='';panel.style.width='';panel.style.height='';
+  }
+  // Handle shifting only applies to docked-open state
+  if(shrimpediaIsPopped){
+    handle.classList.remove('shifted');
+    handle.innerHTML='<span style="display:inline-block;transform:rotate(90deg);font-size:16px;line-height:1;">‹</span>';
+  } else if(panel.classList.contains('open')){
+    handle.classList.add('shifted');
+    handle.innerHTML='<span style="display:inline-block;transform:rotate(90deg);font-size:16px;line-height:1;">›</span>';
+  }
+  updateMagnetTaskbarPosition();
+}
+
+// Drag the popped-out panel by its titlebar
+let spdDrag=null;
+let spdResize=null; // {edge, startX, startY, startLeft, startTop, startW, startH}
+document.getElementById('shrimpedia-titlebar').addEventListener('mousedown',e=>{
+  if(!shrimpediaIsPopped)return;
+  if(e.target.closest('.spd-titlebar-btn'))return;
+  e.preventDefault();
+  const panel=document.getElementById('shrimpedia-panel');
+  const rect=panel.getBoundingClientRect();
+  spdDrag={offsetX:e.clientX-rect.left, offsetY:e.clientY-rect.top};
+});
+// Resize edge handles
+document.querySelectorAll('.spd-resize').forEach(h=>{
+  h.addEventListener('mousedown',e=>{
+    if(!shrimpediaIsPopped)return;
+    e.preventDefault();
+    e.stopPropagation();
+    const panel=document.getElementById('shrimpedia-panel');
+    const rect=panel.getBoundingClientRect();
+    spdResize={
+      edge:h.dataset.edge,
+      startX:e.clientX, startY:e.clientY,
+      startLeft:rect.left, startTop:rect.top,
+      startW:rect.width, startH:rect.height
+    };
+  });
+});
+document.addEventListener('mousemove',e=>{
+  if(spdDrag){
+    const panel=document.getElementById('shrimpedia-panel');
+    panel.style.left=Math.max(0,Math.min(window.innerWidth-100,e.clientX-spdDrag.offsetX))+'px';
+    panel.style.top=Math.max(0,Math.min(window.innerHeight-50,e.clientY-spdDrag.offsetY))+'px';
+    return;
+  }
+  if(spdResize){
+    const panel=document.getElementById('shrimpedia-panel');
+    const dx=e.clientX-spdResize.startX, dy=e.clientY-spdResize.startY;
+    const minW=320, minH=220;
+    const ed=spdResize.edge;
+    let L=spdResize.startLeft, T=spdResize.startTop, W=spdResize.startW, H=spdResize.startH;
+    if(ed.includes('e')) W=Math.max(minW, spdResize.startW+dx);
+    if(ed.includes('s')) H=Math.max(minH, spdResize.startH+dy);
+    if(ed.includes('w')){const nw=Math.max(minW, spdResize.startW-dx); L=spdResize.startLeft+(spdResize.startW-nw); W=nw;}
+    if(ed.includes('n')){const nh=Math.max(minH, spdResize.startH-dy); T=spdResize.startTop+(spdResize.startH-nh); H=nh;}
+    panel.style.left=L+'px';panel.style.top=T+'px';
+    panel.style.width=W+'px';panel.style.height=H+'px';
+  }
+});
+document.addEventListener('mouseup',()=>{spdDrag=null; spdResize=null;});
+
+// Tab clicks
+document.querySelectorAll('.spd-tab').forEach(tab=>{
+  tab.addEventListener('click',()=>{
+    document.querySelectorAll('.spd-tab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    shrimpediaActiveTier=tab.dataset.tier==='cross'?'cross':parseInt(tab.dataset.tier);
+    renderShrimpedia(shrimpediaActiveTier);
+  });
+});
+
+function shrimpColor(id){return getType(id)?.color||'#888';}
+function shrimpName(id){return getType(id)?.name||id;}
+
+function parentDots(pa,pb){
+  const ta=getType(pa),tb=getType(pb);
+  return `<span class="spd-parent-dot" style="background:${ta?.color||'#888'}"></span>
+          <span style="font-size:10px">${ta?.name||pa}</span>
+          <span style="opacity:0.4">+</span>
+          <span class="spd-parent-dot" style="background:${tb?.color||'#888'}"></span>
+          <span style="font-size:10px">${tb?.name||pb}</span>`;
+}
+
+function renderShrimpedia(tierOrCross){
+  const body=document.getElementById('shrimpedia-body');
+  body.innerHTML='';
+  const searchEl=document.getElementById('shrimpedia-search');
+  const q=(searchEl?.value||'').toLowerCase().trim();
+
+  // Progress bar
+  const total=TYPES.length;
+  const found=discovered.size;
+  document.getElementById('shrimpedia-progress-text').textContent=`${found} / ${total} discovered`;
+
+  if(tierOrCross==='cross'){
+    renderCrossTier(body);
+    return;
+  }
+
+  const tier=tierOrCross;
+  let tierTypes=TYPES.filter(t=>t.tier===tier);
+  // Apply search filter — only show shrimp whose name (when discovered) matches.
+  // Undiscovered "???" cards are hidden during search to keep things relevant.
+  if(q){
+    tierTypes=tierTypes.filter(t=>discovered.has(t.id) && t.name.toLowerCase().includes(q));
+    if(!tierTypes.length){
+      body.innerHTML=`<div style="padding:24px;text-align:center;color:rgba(255,255,255,0.4);font-size:13px;">No discovered shrimp match "${q}"</div>`;
+      return;
+    }
+  }
+
+  if(tier===1){
+    // T1: show each shrimp + how to discover it
+    const sec=document.createElement('div');sec.className='spd-section';
+    sec.innerHTML=`<div class="spd-section-title">Tier 1 Base Shrimp — ${tierTypes.length} types</div>`;
+    const grid=document.createElement('div');grid.className='spd-grid';
+    for(const t of tierTypes){
+      const isDisc=discovered.has(t.id);
+      const eligible=isPrawnstigeEligible(t.id);
+      const upgList=prawnstigeUpgrades[t.id]||[];
+      const pCount=prawnstigeCount[t.id]||0;
+      // Progress: how many of this T1's offspring are discovered
+      const offspring=getPrawnstigeOffspringList(t.id);
+      const offDiscovered=offspring.filter(id=>discovered.has(id)).length;
+      // Find discovery rule
+      const rule=RULES.find(r=>r.discovery&&r.o===t.id);
+      const card=document.createElement('div');
+      card.className='spd-card '+(isDisc?'discovered':'undiscovered');
+      card.innerHTML=`
+        <div class="spd-card-name">
+          <span class="spd-dot" style="background:${t.color}"></span>${isDisc?t.name:'???'}${pCount?`<span style="color:#ffd700;font-size:10px;font-weight:600;margin-left:6px;">★${pCount}</span>`:''}
+        </div>
+        ${rule?`<div class="spd-parents">${parentDots(rule.p[0],rule.p[1])}</div><div class="spd-chance">${Math.round(rule.chance*100)}% chance</div>`:'<div style="font-size:11px;color:rgba(255,255,255,0.3)">Starter shrimp</div>'}
+        <div class="spd-income">${isDisc?'$'+t.income.toFixed(2)+'/s':''}</div>
+        ${!isDisc?'<span class="spd-lock">🔒</span>':''}
+        ${isDisc&&offspring.length?`<div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:4px;">Prawnstige: ${offDiscovered} / ${offspring.length}</div>`:''}
+        <div class="spd-card-controls">
+          ${eligible?`<button class="spd-prawnstige-btn" data-prawnstige="${t.id}">★ Prawnstige</button>`:''}
+          ${upgList.length?`<button class="spd-upgrades-btn" data-upgrades="${t.id}">Upgrades (${upgList.length})</button>`:''}
+        </div>
+        ${upgList.length?`<div class="spd-upgrades-list" data-upgrades-list="${t.id}">${upgList.map(u=>{const def=PRAWNSTIGE_UPGRADE_DEFS.find(d=>d.kind===u.kind);return `<div class="spd-upgrade-row"><span>${def?.icon||''} ${def?.label||u.kind}</span><span class="v">+${u.pct}%</span></div>`;}).join('')}</div>`:''}`;
+      grid.appendChild(card);
+    }
+    sec.appendChild(grid);body.appendChild(sec);
+    // Wire up prawnstige & upgrades buttons for T1 cards
+    body.querySelectorAll('.spd-prawnstige-btn').forEach(b=>{
+      b.addEventListener('click',e=>{e.stopPropagation();openPrawnstigeOverlay(b.dataset.prawnstige);});
+    });
+    body.querySelectorAll('.spd-upgrades-btn').forEach(b=>{
+      b.addEventListener('click',e=>{
+        e.stopPropagation();
+        const tid=b.dataset.upgrades;
+        const list=body.querySelector(`.spd-upgrades-list[data-upgrades-list="${tid}"]`);
+        if(list)list.classList.toggle('open');
+      });
+    });
+    return;
+  }
+
+  // T2 or T3: group by parent pairs (show sections of ~8 at a time)
+  const sec=document.createElement('div');sec.className='spd-section';
+  const discCount=tierTypes.filter(t=>discovered.has(t.id)).length;
+  sec.innerHTML=`<div class="spd-section-title">Tier ${tier} — ${discCount} / ${tierTypes.length} discovered</div>`;
+
+  // Build groups: for T2 group by first parent T1; for T3 group by first parent T2
+  const groups={};
+  for(const t of tierTypes){
+    const rule=RULES.find(r=>!r.discovery&&r.o===t.id);
+    if(!rule)continue;
+    const groupKey=rule.p[0];
+    if(!groups[groupKey])groups[groupKey]=[];
+    groups[groupKey].push({t,rule});
+  }
+
+  for(const [groupId,items] of Object.entries(groups)){
+    const gt=getType(groupId);
+    const gsec=document.createElement('div');
+    gsec.style.cssText='margin-bottom:16px;';
+    const glabel=document.createElement('div');
+    glabel.style.cssText='font-size:11px;color:rgba(255,255,255,0.35);margin-bottom:6px;display:flex;align-items:center;gap:6px;';
+    glabel.innerHTML=`<span style="width:8px;height:8px;border-radius:50%;background:${gt?.color||'#888'};display:inline-block"></span>${gt?.name||groupId} combinations`;
+    gsec.appendChild(glabel);
+    const grid=document.createElement('div');grid.className='spd-grid';
+    for(const {t,rule} of items){
+      const isDisc=discovered.has(t.id);
+      const eligible=isPrawnstigeEligible(t.id);
+      const upgList=prawnstigeUpgrades[t.id]||[];
+      const pCount=prawnstigeCount[t.id]||0;
+      const offspring=getPrawnstigeOffspringList(t.id);
+      const offDiscovered=offspring.filter(id=>discovered.has(id)).length;
+      const card=document.createElement('div');
+      card.className='spd-card '+(isDisc?'discovered':'undiscovered');
+      card.innerHTML=`
+        <div class="spd-card-name">
+          <span class="spd-dot" style="background:${t.color}"></span>${isDisc?t.name:'???'}${pCount?`<span style="color:#ffd700;font-size:10px;font-weight:600;margin-left:6px;">★${pCount}</span>`:''}
+        </div>
+        <div class="spd-parents">${parentDots(rule.p[0],rule.p[1])}</div>
+        <div class="spd-chance">${Math.round(rule.chance*100)}% offspring chance</div>
+        <div class="spd-income">${isDisc?'$'+t.income.toFixed(2)+'/s':''}</div>
+        ${!isDisc?'<span class="spd-lock">🔒</span>':''}
+        ${isDisc&&offspring.length?`<div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:4px;">Prawnstige: ${offDiscovered} / ${offspring.length}</div>`:''}
+        <div class="spd-card-controls">
+          ${eligible?`<button class="spd-prawnstige-btn" data-prawnstige="${t.id}">★ Prawnstige</button>`:''}
+          ${upgList.length?`<button class="spd-upgrades-btn" data-upgrades="${t.id}">Upgrades (${upgList.length})</button>`:''}
+        </div>
+        ${upgList.length?`<div class="spd-upgrades-list" data-upgrades-list="${t.id}">${upgList.map(u=>{const def=PRAWNSTIGE_UPGRADE_DEFS.find(d=>d.kind===u.kind);return `<div class="spd-upgrade-row"><span>${def?.icon||''} ${def?.label||u.kind}</span><span class="v">+${u.pct}%</span></div>`;}).join('')}</div>`:''}`;
+      grid.appendChild(card);
+    }
+    gsec.appendChild(grid);
+    sec.appendChild(gsec);
+  }
+  body.appendChild(sec);
+
+  // Wire up prawnstige & upgrades buttons (event delegation)
+  body.querySelectorAll('.spd-prawnstige-btn').forEach(b=>{
+    b.addEventListener('click',e=>{e.stopPropagation();openPrawnstigeOverlay(b.dataset.prawnstige);});
+  });
+  body.querySelectorAll('.spd-upgrades-btn').forEach(b=>{
+    b.addEventListener('click',e=>{
+      e.stopPropagation();
+      const tid=b.dataset.upgrades;
+      const list=body.querySelector(`.spd-upgrades-list[data-upgrades-list="${tid}"]`);
+      if(list)list.classList.toggle('open');
+    });
+  });
+}
+
+function renderCrossTier(body){
+  const sec=document.createElement('div');sec.className='spd-section';
+  sec.innerHTML=`<div class="spd-section-title">Cross-Tier Breeding (Option D)</div>
+    <div style="font-size:13px;color:rgba(255,255,255,0.55);margin-bottom:16px;line-height:1.7;">
+      Any shrimp can breed with any other shrimp across tiers. The offspring will be one of the two parent shrimp's types, chosen randomly (50/50). No new discovery — useful for farming a specific tier.
+    </div>`;
+
+  const pairs=[{a:1,b:2,label:'Tier 1 × Tier 2'},{a:1,b:3,label:'Tier 1 × Tier 3'},{a:2,b:3,label:'Tier 2 × Tier 3'}];
+  for(const {a,b,label} of pairs){
+    const div=document.createElement('div');
+    div.style.cssText='margin-bottom:20px;';
+    div.innerHTML=`<div style="font-size:12px;font-weight:500;color:rgba(255,255,255,0.5);margin-bottom:8px;">${label}</div>`;
+    const t1s=TYPES.filter(t=>t.tier===a&&discovered.has(t.id));
+    const t2s=TYPES.filter(t=>t.tier===b&&discovered.has(t.id));
+    if(!t1s.length||!t2s.length){
+      div.innerHTML+=`<div style="font-size:12px;color:rgba(255,255,255,0.25);">Discover shrimp from both tiers to unlock cross-breeding.</div>`;
+    } else {
+      div.innerHTML+=`<div style="font-size:12px;color:rgba(255,255,255,0.4);">
+        ${t1s.length} Tier ${a} × ${t2s.length} Tier ${b} = <strong style="color:rgba(255,255,255,0.7)">${t1s.length*t2s.length} possible pairs</strong>
+        — each 50% chance of either parent type
+      </div>
+      <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px;">
+        ${t1s.slice(0,8).map(t=>`<span style="background:${t.color}22;border:1px solid ${t.color}44;color:${t.color};font-size:10px;padding:2px 8px;border-radius:4px;">${t.name}</span>`).join('')}
+        ${t1s.length>8?`<span style="font-size:10px;color:rgba(255,255,255,0.3)">+${t1s.length-8} more</span>`:''}
+      </div>`;
+    }
+    sec.appendChild(div);
+  }
+  body.appendChild(sec);
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ══ UPGRADES SYSTEM ══════════════════════════════════════════════════════════
+
+// Tank dimensions — change via tank expansion upgrade
+let TANK_W=2400, TANK_H=1600;
+const TANK_BASE_W=2400;
+
+let snails=[];
+let autobreeder=null; // {x,y,slots:[shrimpTypeId or null, shrimpTypeId or null], lastBreedAt, accum, cycleSec}
+let autobreederSpeedLevel=0; // 0-based; each level reduces breed time
+let magnets=[]; // [{id,x,y,locked,polarity:'attract'|'repel',targetType:string|null,el}]
+let mantises=[]; // big predator shrimp generated via cave sacrifice
+let nextMantisId=1;
+let cave=null; // {el, sacrificeProgress:0..200}
+
+// Mantis tuning — relaxed pacing
+const MANTIS_DRAW=320;          // ~5× shrimp size (64)
+const MANTIS_HALF=160;
+const MANTIS_HUNGER_MAX=600;    // hunger pool: 10 minutes if never fed (just for the death timer)
+const MANTIS_PATROL_SPEED=42;
+const MANTIS_PURSUE_SPEED=85;
+const MANTIS_EAT_RADIUS=140;
+// State machine timings
+const MANTIS_HUNT_INTERVAL_MIN=70;   // seconds of patrol before next hunt
+const MANTIS_HUNT_INTERVAL_MAX=130;
+const MANTIS_HUNT_TIMEOUT=240;       // generous hunt window so paced eats can complete
+const MANTIS_TARGETS_PER_HUNT_MIN=1;
+const MANTIS_TARGETS_PER_HUNT_MAX=10;
+const MANTIS_POST_EAT_PAUSE_MIN=0;   // no pause between eats — mantis just chains bites
+const MANTIS_POST_EAT_PAUSE_MAX=0;
+// Diamond drop pacing
+const MANTIS_DIAMOND_INTERVAL=30;    // one diamond per ~30s, ambient
+const DIAMOND_BASE_VALUE=8000;
+const DIAMOND_VARIANCE=4000;
+const SACRIFICE_COST=200;
+
+const UPGRADES=[
+  {
+    id:'snail',
+    name:'Coin Snail',
+    desc:'A loyal snail that scours the tank floor, auto-collecting any coins it crawls over.',
+    icon:'🐌',
+    basePrice:150,
+    unlockTypes:5,
+    onBuy:()=>spawnSnail(),
+    countFn:()=>snails.length,
+    priceFn:function(){return Math.round(this.basePrice*Math.pow(1.6,this.countFn()));}
+  },
+  {
+    id:'tank_expand',
+    name:'Tank Expansion',
+    desc:'Widen the tank by ~25%, giving more floor space for coins, more room for shrimp, and a longer beat for snails to patrol.',
+    icon:'📐',
+    basePrice:25000,
+    unlockTypes:10,
+    onBuy:()=>expandTank(),
+    countFn:()=>tankExpansionLevel,
+    priceFn:function(){return Math.round(this.basePrice*Math.pow(2.5,this.countFn()));},
+    maxOwn:5,
+  },
+  {
+    id:'magnet',
+    name:'Shrimp Magnet',
+    desc:'A repositionable magnet. Lock it in place, pick a shrimp type, and toggle polarity to attract that type closer or repel them away. Buy as many as you like.',
+    icon:'🧲',
+    basePrice:500000,
+    unlockTypes:20,
+    onBuy:()=>spawnMagnet(),
+    countFn:()=>magnets.length,
+    priceFn:function(){return Math.round(this.basePrice*Math.pow(1.5,this.countFn()));}
+  },
+  {
+    id:'autobreeder',
+    name:'Autobreeder',
+    desc:'A breeding machine in the bottom-left of the tank. Drop two shrimp into its slots and it breeds them automatically — no wheel, no clicking.',
+    icon:'⚙️',
+    basePrice:1000000,
+    unlockTypes:100,
+    onBuy:()=>spawnAutobreeder(),
+    countFn:()=>autobreeder?1:0,
+    priceFn:function(){return autobreeder?0:this.basePrice;}, // one-time
+    maxOwn:1,
+  },
+  {
+    id:'autobreeder_speed',
+    name:'Autobreeder Speed +20%',
+    desc:'Reduces autobreeder cycle time by 20% (multiplicative). Requires Autobreeder.',
+    icon:'⚡',
+    basePrice:50000,
+    unlockTypes:100,
+    requires:()=>!!autobreeder,
+    onBuy:()=>{autobreederSpeedLevel++;updateAutobreederCycle();},
+    countFn:()=>autobreederSpeedLevel,
+    priceFn:function(){return Math.round(this.basePrice*Math.pow(2,this.countFn()));},
+    maxOwn:8,
+  },
+];
+
+let tankExpansionLevel=0;
+
+function expandTank(){
+  tankExpansionLevel++;
+  TANK_W=Math.round(TANK_BASE_W*(1+tankExpansionLevel*0.25));
+  applyTankSize();
+  // Final tank expansion (level 5) reveals the ominous cave
+  if(tankExpansionLevel>=5 && !cave){
+    spawnCave();
+  }
+}
+
+function resizeShrimpCanvas(){
+  const tankRect=tankEl.getBoundingClientRect();
+  const w=Math.max(100,Math.round(tankRect.width));
+  const h=Math.max(100,Math.round(tankRect.height));
+  shrimpCanvas.width=w*CANVAS_DPR;
+  shrimpCanvas.height=h*CANVAS_DPR;
+  shrimpCanvas.style.width=w+'px';
+  shrimpCanvas.style.height=h+'px';
+  shrimpCtx.imageSmoothingEnabled=false;
+}
+
+function applyTankSize(){
+  inner.style.width=TANK_W+'px';
+  inner.style.height=TANK_H+'px';
+  resizeShrimpCanvas();
+}
+applyTankSize(); // initial
+window.addEventListener('resize',resizeShrimpCanvas);
+
+function getSandTop(){return TANK_H-65;}
+function getCoinSinkY(){return TANK_H-60;}
+function getMaxX(){return TANK_W-50;}
+function getMaxY(){return TANK_H-60;}
+
+const SAND_TOP=1535; // legacy reference, kept for snail spawn position calc
+
+// ── Cave & Mantis Shrimp ────────────────────────────────────────────────────
+
+function spawnCave(){
+  if(cave)return;
+  const el=document.createElement('div');
+  el.className='cave cave-spawning';
+  // Remove the spawning class after animation finishes so future class changes don't replay it
+  setTimeout(()=>el.classList.remove('cave-spawning'),900);
+  // Place at right side of tank, on the sand
+  cave={
+    el,
+    x:TANK_W-360,
+    y:TANK_H-280,
+    sacrificeProgress:0,
+  };
+  el.style.left=cave.x+'px';
+  el.style.top=cave.y+'px';
+  el.innerHTML=`
+    <div class="cave-mouth">
+      <svg viewBox="0 0 240 220" width="240" height="220" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <radialGradient id="caveGlow" cx="50%" cy="55%" r="50%">
+            <stop offset="0%" stop-color="#000" stop-opacity="1"/>
+            <stop offset="55%" stop-color="#0a0610" stop-opacity="0.95"/>
+            <stop offset="100%" stop-color="#1c1018" stop-opacity="0"/>
+          </radialGradient>
+          <filter id="caveBlur"><feGaussianBlur stdDeviation="2"/></filter>
+        </defs>
+        <!-- jagged outer rock silhouette -->
+        <path d="M 10 200 L 5 130 L 22 90 L 18 60 L 40 35 L 70 22 L 100 14 L 140 12 L 175 22 L 200 38 L 222 70 L 232 110 L 226 160 L 232 200 Z"
+              fill="#1a1018" stroke="#2c1a26" stroke-width="2"/>
+        <!-- inner darkness -->
+        <ellipse cx="120" cy="130" rx="78" ry="68" fill="url(#caveGlow)"/>
+        <ellipse cx="120" cy="130" rx="60" ry="55" fill="#000"/>
+        <!-- subtle red eyes deep inside -->
+        <circle cx="105" cy="125" r="2.5" fill="#ff3a3a" opacity="0.55"><animate attributeName="opacity" values="0.4;0.85;0.4" dur="2.6s" repeatCount="indefinite"/></circle>
+        <circle cx="135" cy="128" r="2.5" fill="#ff3a3a" opacity="0.5"><animate attributeName="opacity" values="0.5;0.9;0.5" dur="2.9s" repeatCount="indefinite"/></circle>
+        <!-- stalactites -->
+        <path d="M 70 75 L 78 95 L 82 75 Z" fill="#2c1a26"/>
+        <path d="M 100 70 L 108 92 L 113 70 Z" fill="#2c1a26"/>
+        <path d="M 140 72 L 146 90 L 152 72 Z" fill="#2c1a26"/>
+        <path d="M 170 78 L 175 96 L 180 78 Z" fill="#2c1a26"/>
+      </svg>
+    </div>
+    <div class="cave-counter">
+      <div class="cave-counter-label">SACRIFICE</div>
+      <div class="cave-counter-value"><span id="cave-progress">0</span> / ${SACRIFICE_COST}</div>
+      <div class="cave-counter-hint">Drag shrimp here</div>
+    </div>`;
+  inner.appendChild(el);
+}
+
+function updateCaveCounter(){
+  if(!cave)return;
+  const el=document.getElementById('cave-progress');
+  if(el)el.textContent=cave.sacrificeProgress;
+  // Glow follows the cave silhouette (drop-shadow on the SVG, not a box-shadow on the wrapper)
+  const t=cave.sacrificeProgress/SACRIFICE_COST;
+  const svg=cave.el.querySelector('svg');
+  if(svg){
+    const blur=8+t*20;
+    const a=0.25+t*0.55;
+    svg.style.filter=`drop-shadow(0 0 ${blur}px rgba(255,${Math.round(60-t*60)},${Math.round(60-t*60)},${a}))`;
+  }
+}
+
+function checkCaveDrop(droppedShrimp){
+  if(!cave)return false;
+  const sx=droppedShrimp.x+SHRIMP_HALF, sy=droppedShrimp.y+SHRIMP_HALF;
+  const cx=cave.x+120, cy=cave.y+130;
+  if(Math.hypot(cx-sx,cy-sy)<70){
+    // Block sacrifice only if this is the last shrimp of its TIER (not just its type)
+    const droppedType=getType(droppedShrimp.type);
+    let tierCount=0;
+    for(const s of shrimps){
+      const st=getType(s.type);
+      if(st && droppedType && st.tier===droppedType.tier)tierCount++;
+    }
+    if(tierCount<=1){
+      notify(`Cannot sacrifice your last Tier ${droppedType.tier} shrimp!`,'#ff8888');
+      cave.el.classList.remove('cave-target-ok');
+      return false;
+    }
+    removeShrimp(droppedShrimp);
+    cave.sacrificeProgress++;
+    updateCaveCounter();
+    if(cave.sacrificeProgress>=SACRIFICE_COST){
+      cave.sacrificeProgress=0;
+      updateCaveCounter();
+      spawnMantis();
+    }
+    cave.el.classList.remove('cave-target-ok');
+    return true;
+  }
+  return false;
+}
+
+function caveHover(droppedShrimp){
+  if(!cave)return false;
+  const sx=droppedShrimp.x+SHRIMP_HALF, sy=droppedShrimp.y+SHRIMP_HALF;
+  const cx=cave.x+120, cy=cave.y+130;
+  const inside=Math.hypot(cx-sx,cy-sy)<110;
+  // Tier-level protection check for the hover hint
+  const droppedType=getType(droppedShrimp.type);
+  let tierCount=0;
+  for(const s of shrimps){
+    const st=getType(s.type);
+    if(st && droppedType && st.tier===droppedType.tier)tierCount++;
+  }
+  const wouldOrphanTier=tierCount<=1;
+  const has=cave.el.classList.contains('cave-target-ok');
+  const shouldHighlight=inside && !wouldOrphanTier;
+  if(shouldHighlight && !has) cave.el.classList.add('cave-target-ok');
+  else if(!shouldHighlight && has) cave.el.classList.remove('cave-target-ok');
+  if(inside){
+    if(wouldOrphanTier){
+      showBreed(`Cannot sacrifice your last Tier ${droppedType.tier} shrimp!`,'#ff8888');
+    } else {
+      showBreed('Sacrifice to the cave','#ff7a7a');
+    }
+    return true;
+  }
+  return false;
+}
+
+function spawnMantis(){
+  const m={
+    id:nextMantisId++,
+    x:cave.x+30+Math.random()*80,
+    y:cave.y+20+Math.random()*40,
+    flip:false,
+    hunger:MANTIS_HUNGER_MAX,
+    // State machine: 'idle' (patrolling) or 'hunting' (active desire + pursuit)
+    state:'idle',
+    desire:null,           // shrimp type id when hunting; null when idle
+    targetsRemaining:0,    // how many of the desired type still to eat in this hunt
+    huntTimeout:0,         // safety timer to end a hunt that finds no targets
+    nextHuntIn:0, // hungry immediately — first hunt triggers on the next tick
+    postEatPause:0,        // brief pause after a successful eat
+    diamondAccum:0,        // ambient diamond drop timer
+    patrolTarget:null,
+    speechEl:null,
+  };
+  const sp=document.createElement('div');
+  sp.className='mantis-speech';
+  inner.appendChild(sp);
+  m.speechEl=sp;
+  mantises.push(m);
+  updateMantisSpeech(m); // populate initial idle content
+  notify('🦐 A Mantis Shrimp emerges from the cave!','#ff7a7a');
+  updateUI();
+}
+
+// Pick a fresh hunt — desire is rolled from ALL discovered T1/T2 types, regardless of what's in the tank.
+// The only exclusion: if a type is the last of its entire tier (eating it would zero out the tier).
+// This way the mantis stays "hungry" and shows a desire even when the player needs to breed/buy more.
+function startHunt(m){
+  // Count current living shrimp per type AND per tier
+  const counts={};
+  const tierCounts={1:0,2:0,3:0};
+  for(const s of shrimps){
+    counts[s.type]=(counts[s.type]||0)+1;
+    const t=getType(s.type);
+    if(t)tierCounts[t.tier]++;
+  }
+  // Eligible desires: any discovered T1/T2, except types where their tier has only 1 shrimp total
+  // (so the mantis can want a type even if the player has 0 of it — pressuring them to breed/buy)
+  const eligible=[...discovered].filter(id=>{
+    const t=getType(id);
+    if(!t || t.tier>=3)return false;
+    // If the player has 0 of this type, that's fine — mantis can still desire it
+    // If the player has 1+, this type is only excluded when it would orphan the tier
+    const cnt=counts[id]||0;
+    if(cnt>=2)return true; // safe: 2+ exist
+    if(cnt===0)return true; // safe: nothing to eat anyway, mantis just desires
+    // cnt===1: only exclude if removing it would empty the tier
+    return tierCounts[t.tier]>1;
+  });
+  if(!eligible.length){
+    // Truly nothing the mantis can desire (player has only one shrimp total in entire game)
+    m.nextHuntIn=2+Math.random()*3;
+    return;
+  }
+  m.state='hunting';
+  m.desire=eligible[Math.floor(Math.random()*eligible.length)];
+  m.postEatPause=0;
+  // Quota is the rolled 1-10 BUT capped so the eat-time guard never wipes a tier
+  const desireType=getType(m.desire);
+  const desireCount=counts[m.desire]||0;
+  const tierCount=tierCounts[desireType.tier];
+  // Max safe = how many of this type we can eat without leaving the tier with 0 shrimp
+  // If tier has more than just this type's contribution, we can eat all of them
+  const otherInTier=tierCount-desireCount;
+  const safeMax=otherInTier>=1 ? desireCount : Math.max(0, desireCount-1);
+  const rolledQuota=MANTIS_TARGETS_PER_HUNT_MIN+Math.floor(Math.random()*(MANTIS_TARGETS_PER_HUNT_MAX-MANTIS_TARGETS_PER_HUNT_MIN+1));
+  // Target what's rolled — but allow it to be larger than safeMax since the mantis just won't find any to eat
+  // (the per-tick check will end the hunt safely if needed)
+  m.targetsRemaining=rolledQuota;
+  m.huntTimeout=MANTIS_HUNT_TIMEOUT;
+  updateMantisSpeech(m);
+}
+
+// Hunger threshold for chaining hunts — if below this when a hunt ends, immediately start another
+const MANTIS_SATISFIED_THRESHOLD=0.5;  // 50% — mantis chains hunts back-to-back until at least half-full
+
+function endHunt(m){
+  // If the mantis is still hungry, immediately roll a new hunt instead of going idle
+  if(m.hunger/MANTIS_HUNGER_MAX < MANTIS_SATISFIED_THRESHOLD){
+    m.targetsRemaining=0;
+    m.huntTimeout=0;
+    m.postEatPause=0;
+    startHunt(m);
+    // If startHunt found nothing eligible (every type has only 1 shrimp), check again quickly —
+    // a starving mantis should pounce the moment a new shrimp is bred
+    if(m.state!=='hunting'){
+      m.state='idle';
+      m.desire=null;
+      m.nextHuntIn=2+Math.random()*3;
+    }
+    return;
+  }
+  m.state='idle';
+  m.desire=null;
+  m.targetsRemaining=0;
+  m.huntTimeout=0;
+  m.postEatPause=0;
+  m.nextHuntIn=MANTIS_HUNT_INTERVAL_MIN+Math.random()*(MANTIS_HUNT_INTERVAL_MAX-MANTIS_HUNT_INTERVAL_MIN);
+}
+
+// Refresh speech bubble HTML — always rendered, content depends on state
+function updateMantisSpeech(m){
+  if(!m.speechEl)return;
+  const hungerPct=Math.max(0,Math.min(100,(m.hunger/MANTIS_HUNGER_MAX)*100));
+  const barColor=hungerPct<25?'#ff4040':hungerPct<50?'#ffaa40':'#7adc7a';
+  if(m.state==='hunting' && m.desire){
+    const t=getType(m.desire);
+    if(!t){m.speechEl.innerHTML='';return;}
+    m.speechEl.innerHTML=`
+      <div class="mantis-speech-icon" style="background:${t.color};"></div>
+      <div class="mantis-speech-body">
+        <div class="mantis-speech-text">${t.name} <span style="opacity:0.55;font-size:10px;">×${m.targetsRemaining}</span></div>
+        <div class="mantis-hunger-bar"><div class="mantis-hunger-fill" style="width:${hungerPct.toFixed(1)}%;background:${barColor};"></div></div>
+      </div>`;
+  } else {
+    // Idle/patrolling — clean text, no dot, no hunger bar
+    m.speechEl.innerHTML=`<div class="mantis-speech-text" style="opacity:0.7;text-align:center;width:100%;">Patrolling</div>`;
+  }
+}
+
+function tickMantises(dt){
+  if(!mantises.length)return;
+  for(const m of [...mantises]){
+    // Hunger only depletes while actively hunting — patrolling is "free"
+    if(m.state==='hunting'){
+      m.hunger-=dt;
+    }
+    if(m.hunger<=0){
+      m.speechEl?.remove();
+      mantises=mantises.filter(x=>x!==m);
+      notify('💀 A Mantis Shrimp starved to death','#ff5555');
+      updateUI();
+      continue;
+    }
+
+    // Ambient diamond drop — independent of feeding, on a steady interval like coins
+    m.diamondAccum=(m.diamondAccum||0)+dt;
+    if(m.diamondAccum>=MANTIS_DIAMOND_INTERVAL){
+      m.diamondAccum-=MANTIS_DIAMOND_INTERVAL;
+      const v=DIAMOND_BASE_VALUE+Math.random()*DIAMOND_VARIANCE;
+      spawnDiamond(m.x+MANTIS_HALF, m.y+MANTIS_HALF, Math.round(v));
+    }
+
+    // State machine
+    if(m.state==='idle'){
+      m.nextHuntIn-=dt;
+      if(m.nextHuntIn<=0){
+        startHunt(m);
+      }
+    } else if(m.state==='hunting'){
+      // If the mantis can't safely eat any of its desired type right now (none in tank, or eating
+      // would empty the tier), freeze the timeout so the desire persists indefinitely until the
+      // player produces more. Hunger continues to tick down — that's the actual pressure.
+      let canEatNow=false;
+      if(m.desire){
+        const desireType=getType(m.desire);
+        let typeCount=0, tierCount=0;
+        for(const s of shrimps){
+          if(s.type===m.desire)typeCount++;
+          const st=getType(s.type);
+          if(st && desireType && st.tier===desireType.tier)tierCount++;
+        }
+        canEatNow=(typeCount>=2)||(typeCount===1 && tierCount>1);
+      }
+      if(canEatNow){
+        m.huntTimeout-=dt;
+        if(m.huntTimeout<=0){
+          // Couldn't catch enough in time — back to patrolling
+          endHunt(m);
+        }
+      }
+      if(m.postEatPause>0){
+        m.postEatPause-=dt;
+      }
+    }
+
+    // Determine pursuit target if hunting and not pausing
+    let target=null;
+    if(m.state==='hunting' && m.postEatPause<=0 && m.desire){
+      // Count how many of the desired type AND its tier are alive
+      const desireType=getType(m.desire);
+      let typeCount=0, tierCount=0;
+      for(const s of shrimps){
+        if(s.type===m.desire)typeCount++;
+        const st=getType(s.type);
+        if(st && desireType && st.tier===desireType.tier)tierCount++;
+      }
+      // If pursuing would result in eating the last shrimp in tier, the mantis just doesn't pursue —
+      // it keeps its current desire visible, hunger keeps ticking, player must produce more of the desired type.
+      // Cases that PREVENT pursuit (mantis hovers, desire bubble stays up):
+      //   typeCount===0                       — nothing to chase
+      //   typeCount===1 && tierCount===1      — eating it would empty the entire tier
+      const cannotEat=(typeCount===0)||(typeCount===1 && tierCount===1);
+      if(!cannotEat){
+        let bestDist=Infinity;
+        for(const s of shrimps){
+          if(s.type!==m.desire)continue;
+          const dx=s.x+SHRIMP_HALF-(m.x+MANTIS_HALF);
+          const dy=s.y+SHRIMP_HALF-(m.y+MANTIS_HALF);
+          const d=dx*dx+dy*dy;
+          if(d<bestDist){bestDist=d;target=s;}
+        }
+      }
+    }
+
+    let moveX=0,moveY=0;
+    if(target){
+      const dx=(target.x+SHRIMP_HALF)-(m.x+MANTIS_HALF);
+      const dy=(target.y+SHRIMP_HALF)-(m.y+MANTIS_HALF);
+      const d=Math.hypot(dx,dy)||0.001;
+      if(d<MANTIS_EAT_RADIUS){
+        // Final tier-aware guard — refuse the bite without ending the hunt
+        const desireType=getType(m.desire);
+        let typeCount=0, tierCount=0;
+        for(const s of shrimps){
+          if(s.type===m.desire)typeCount++;
+          const st=getType(s.type);
+          if(st && desireType && st.tier===desireType.tier)tierCount++;
+        }
+        if(typeCount===1 && tierCount===1){
+          // Don't eat, don't end the hunt — just skip this frame's pursuit. Player must breed/buy more.
+          target=null;
+        } else {
+          // Eat the target — refill hunger, no money/diamond drop here
+          removeShrimp(target);
+          m.hunger=Math.min(MANTIS_HUNGER_MAX, m.hunger+120);
+          m.targetsRemaining--;
+          m.postEatPause=MANTIS_POST_EAT_PAUSE_MIN+Math.random()*(MANTIS_POST_EAT_PAUSE_MAX-MANTIS_POST_EAT_PAUSE_MIN);
+          if(m.targetsRemaining<=0){
+            endHunt(m);
+          } else {
+            updateMantisSpeech(m); // refresh ×N counter
+          }
+          continue;
+        }
+      }
+      // Pursue (only if target wasn't nulled by the eat-refusal branch)
+      if(target){
+        moveX=(dx/d)*MANTIS_PURSUE_SPEED*dt;
+        moveY=(dy/d)*MANTIS_PURSUE_SPEED*dt;
+        m.flip=dx>0;
+      }
+    }
+    if(!target) {
+      // Patrol — leisurely random wander
+      if(!m.patrolTarget||Math.hypot(m.patrolTarget.x-m.x,m.patrolTarget.y-m.y)<60){
+        m.patrolTarget={
+          x:80+Math.random()*Math.max(100,TANK_W-160-MANTIS_DRAW),
+          y:80+Math.random()*Math.max(100,TANK_H-200-MANTIS_DRAW),
+        };
+      }
+      const dx=m.patrolTarget.x-m.x, dy=m.patrolTarget.y-m.y;
+      const d=Math.hypot(dx,dy)||0.001;
+      moveX=(dx/d)*MANTIS_PATROL_SPEED*dt;
+      moveY=(dy/d)*MANTIS_PATROL_SPEED*dt;
+      m.flip=dx>0;
+    }
+
+    m.x=Math.max(0,Math.min(TANK_W-MANTIS_DRAW,m.x+moveX));
+    m.y=Math.max(0,Math.min(TANK_H-MANTIS_DRAW,m.y+moveY));
+
+    // Speech bubble — always visible (food timer + status)
+    if(m.speechEl){
+      m.speechEl.style.display='flex';
+      // Center horizontally on the mantis using the bubble's actual width (varies with name length)
+      const bw=m.speechEl.offsetWidth||160;
+      m.speechEl.style.left=(m.x+MANTIS_HALF-bw/2)+'px';
+      m.speechEl.style.top=(m.y-94)+'px';
+      // Refresh hunger bar + state every 0.5s of game time
+      m._refreshAccum=(m._refreshAccum||0)+dt;
+      if(m._refreshAccum>0.5){m._refreshAccum=0;updateMantisSpeech(m);}
+    }
+  }
+}
+
+function spawnDiamond(x,y,val){
+  const div=document.createElement('div');
+  div.className='diamond';
+  div.innerHTML='<svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 2 L20 9 L12 22 L4 9 Z" fill="#9ec9ff" stroke="#dbeaff" stroke-width="1.2"/><path d="M12 2 L20 9 L12 9 Z" fill="#bcdbff"/><path d="M4 9 L12 9 L12 2 Z" fill="#7dafff"/></svg>';
+  const cx=Math.max(10,Math.min(TANK_W-30,x+Math.random()*40-20));
+  const startY=Math.max(10,Math.min(TANK_H-80,y-30+Math.random()*20));
+  div.style.left=cx+'px';
+  div.style.top=startY+'px';
+  div.addEventListener('mouseenter',e=>{
+    tooltipEl.style.display='block';
+    tooltipEl.style.left=(e.clientX+12)+'px';
+    tooltipEl.style.top=(e.clientY-10)+'px';
+    tooltipEl.textContent='💎 +$'+val.toLocaleString();
+  });
+  div.addEventListener('mouseleave',()=>tooltipEl.style.display='none');
+  div.addEventListener('click',()=>{
+    money+=val;moneyEl.textContent=Math.floor(money).toLocaleString();
+    div.remove();coins=coins.filter(c=>c.el!==div);
+    tooltipEl.style.display='none';
+  });
+  inner.appendChild(div);
+  // Diamonds reuse the coins pipeline (sink/snail collect/fade) but with longer fade
+  const c={el:div,val,born:Date.now(),cx:cx,cy:startY,vy:8+Math.random()*12,sunk:false,collected:false,sourceType:null,isDiamond:true};
+  coins.push(c);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+function spawnSnail(){
+  const id='snail_'+(snails.length+1);
+  const s={
+    id,
+    x:Math.random()*(TANK_W-100),
+    y:TANK_H-73,
+    dir:Math.random()<0.5?-1:1,
+    speed:30+Math.random()*15,
+    el:null,
+  };
+  const div=document.createElement('div');
+  div.className='snail';
+  div.innerHTML=`<svg viewBox="0 0 46 30" xmlns="http://www.w3.org/2000/svg">
+    <ellipse cx="14" cy="22" rx="13" ry="5" fill="#3a2818"/>
+    <circle cx="22" cy="14" r="11" fill="#a06a3a"/>
+    <circle cx="22" cy="14" r="11" fill="none" stroke="#7a4820" stroke-width="1.5"/>
+    <path d="M 22 14 m -7 0 a 7 7 0 1 1 14 0 a 7 7 0 1 1 -14 0" fill="none" stroke="#7a4820" stroke-width="1"/>
+    <path d="M 22 14 m -3 0 a 3 3 0 1 1 6 0 a 3 3 0 1 1 -6 0" fill="none" stroke="#7a4820" stroke-width="1"/>
+    <ellipse cx="6" cy="22" rx="4" ry="3" fill="#5a3818"/>
+    <line x1="3" y1="20" x2="1" y2="16" stroke="#3a2818" stroke-width="1"/>
+    <line x1="5" y1="19" x2="4" y2="15" stroke="#3a2818" stroke-width="1"/>
+    <circle cx="1" cy="16" r="0.8" fill="#1a0808"/>
+    <circle cx="4" cy="15" r="0.8" fill="#1a0808"/>
+  </svg>`;
+  div.style.left=s.x+'px';
+  div.style.top=s.y+'px';
+  inner.appendChild(div);
+  s.el=div;
+  snails.push(s);
+}
+
+function tickSnails(dt){
+  if(!snails.length)return;
+  // Pre-filter coins to only those sunk and uncollected (the only ones a snail can pick up)
+  const sunkCoins=coins.filter(c=>c.sunk&&!c.collected);
+  for(const s of snails){
+    s.x+=s.speed*s.dir*dt;
+    if(s.x<10){s.x=10;s.dir=1;}
+    if(s.x>TANK_W-50){s.x=TANK_W-50;s.dir=-1;}
+    s.el.style.left=s.x+'px';
+    s.el.style.transform=s.dir>0?'scaleX(-1)':'';
+
+    for(const c of sunkCoins){
+      if(c.collected)continue;
+      // Use cached position from coin data instead of parseFloat
+      const cx=c.cx, cy=c.cy;
+      if(cx==null)continue;
+      if(Math.abs(cx-s.x)<24 && Math.abs(cy-s.y)<30){
+        money+=c.val;
+        moneyEl.textContent=Math.floor(money).toLocaleString();
+        c.el.remove();
+        c.collected=true;
+      }
+    }
+  }
+  // Clean up any collected coins that snails picked up
+  if(sunkCoins.some(c=>c.collected))coins=coins.filter(c=>!c.collected);
+}
+
+// ── Autobreeder ──────────────────────────────────────────────────────────────
+function autobreederSpeedMultiplier(){
+  return Math.pow(0.8,autobreederSpeedLevel); // each level = 20% faster
+}
+function updateAutobreederCycle(){
+  if(!autobreeder)return;
+  // Recompute current cycle target based on slot contents
+  if(autobreeder.slots[0]&&autobreeder.slots[1]){
+    const a=getType(autobreeder.slots[0]), b=getType(autobreeder.slots[1]);
+    const baseBcd=Math.max(a.bcd,b.bcd); // use the higher-tier parent's cooldown
+    // 3x regular cooldown time, modified by speed level
+    autobreeder.cycleSec=(baseBcd/1000)*3*autobreederSpeedMultiplier();
+  } else {
+    autobreeder.cycleSec=0;
+  }
+}
+
+function spawnAutobreeder(){
+  if(autobreeder)return;
+  autobreeder={
+    x:60, y:TANK_H-200,
+    slots:[null,null],
+    accum:0,
+    cycleSec:0,
+    el:null,
+  };
+  buildAutobreederEl();
+  renderAutobreeder();
+}
+
+function buildAutobreederEl(){
+  if(!autobreeder)return;
+  const div=document.createElement('div');
+  div.id='autobreeder';
+  div.style.cssText=`position:absolute;left:${autobreeder.x}px;top:${autobreeder.y}px;width:180px;height:120px;z-index:11;`;
+  div.innerHTML=`
+    <div class="ab-frame">
+      <div class="ab-title">⚙️ AUTOBREEDER</div>
+      <div class="ab-slots">
+        <div class="ab-slot" data-slot="0">
+          <div class="ab-slot-inner" id="ab-slot-0"><div class="ab-empty">drop</div></div>
+        </div>
+        <div class="ab-plus">+</div>
+        <div class="ab-slot" data-slot="1">
+          <div class="ab-slot-inner" id="ab-slot-1"><div class="ab-empty">drop</div></div>
+        </div>
+      </div>
+      <div class="ab-progress"><div class="ab-progress-fill" id="ab-progress"></div></div>
+      <div class="ab-status" id="ab-status">Both slots empty</div>
+    </div>`;
+  inner.appendChild(div);
+  autobreeder.el=div;
+
+  // Make slots clickable to clear
+  div.querySelectorAll('.ab-slot').forEach(slotEl=>{
+    slotEl.addEventListener('click',e=>{
+      e.stopPropagation();
+      const idx=parseInt(slotEl.dataset.slot);
+      if(autobreeder.slots[idx]){
+        // Eject: respawn shrimp near the autobreeder
+        const ejectedType=autobreeder.slots[idx];
+        autobreeder.slots[idx]=null;
+        autobreeder.accum=0;
+        updateAutobreederCycle();
+        renderAutobreeder();
+        // Spawn the shrimp back into the tank near the autobreeder
+        shrimpCapBypass=true;
+        createShrimp(ejectedType,autobreeder.x+90+Math.random()*40,autobreeder.y-40);
+        shrimpCapBypass=false;
+        notify('Ejected '+getType(ejectedType).name);
+      }
+    });
+  });
+}
+
+function renderAutobreeder(){
+  if(!autobreeder||!autobreeder.el)return;
+  for(let i=0;i<2;i++){
+    const inner_=document.getElementById('ab-slot-'+i);
+    if(!inner_)continue;
+    const typeId=autobreeder.slots[i];
+    if(typeId){
+      const t=getType(typeId);
+      inner_.innerHTML=`<div class="ab-shrimp" style="background:${t.color}"></div><div class="ab-name">${t.name.replace(' Shrimp','')}</div>`;
+    } else {
+      inner_.innerHTML='<div class="ab-empty">drop</div>';
+    }
+  }
+  const status=document.getElementById('ab-status');
+  if(status){
+    if(!autobreeder.slots[0]||!autobreeder.slots[1]) status.textContent='Drop two shrimp to start';
+    else status.textContent=`Next breed in ${Math.max(0,Math.ceil(autobreeder.cycleSec-autobreeder.accum))}s`;
+  }
+  const fill=document.getElementById('ab-progress');
+  if(fill){
+    const pct=autobreeder.cycleSec>0?Math.min(100,(autobreeder.accum/autobreeder.cycleSec*100)):0;
+    fill.style.width=pct+'%';
+  }
+}
+
+function tickAutobreeder(dt){
+  if(!autobreeder)return;
+  if(!autobreeder.slots[0]||!autobreeder.slots[1]){
+    autobreeder.accum=0;
+    return;
+  }
+  if(!autobreeder.cycleSec)updateAutobreederCycle();
+  autobreeder.accum+=dt;
+  if(autobreeder.accum>=autobreeder.cycleSec){
+    autobreeder.accum=0;
+    // Run a breed (no wheel) — directly produce offspring
+    autobreederBreed();
+  }
+  renderAutobreeder();
+}
+
+function autobreederBreed(){
+  const aType=autobreeder.slots[0];
+  const bType=autobreeder.slots[1];
+  const a={type:aType,x:autobreeder.x+50,y:autobreeder.y};
+  const b={type:bType,x:autobreeder.x+130,y:autobreeder.y};
+  const ta=getType(aType), tb=getType(bType);
+  if(!ta||!tb)return;
+
+  let resultType, rule=null;
+  if(ta.tier===tb.tier){
+    rule=findSameTierRule(aType,bType);
+    if(rule){
+      resultType=Math.random()<rule.chance?rule.o:(Math.random()<0.5?aType:bType);
+    } else {
+      resultType=Math.random()<0.5?aType:bType;
+    }
+  } else {
+    resultType=Math.random()<0.5?aType:bType;
+  }
+  const resultT=getType(resultType);
+  if(!resultT)return;
+  // Spawn the offspring near the autobreeder
+  const nx=autobreeder.x+90+(Math.random()-0.5)*40;
+  const ny=autobreeder.y-30+(Math.random()-0.5)*40;
+  createShrimp(resultType,nx,ny);
+  if(!discovered.has(resultType)){
+    notify('Autobreeder discovered: '+resultT.name+'! 🦐');
+  }
+}
+
+// Drop-target check during shrimp drag — if dragged onto autobreeder slot, fill it
+function checkAutobreederDrop(droppedShrimp){
+  if(!autobreeder)return false;
+  const sx=droppedShrimp.x, sy=droppedShrimp.y;
+  // Slot 0: roughly x..x+70, y..y+90 (left half of autobreeder)
+  // Slot 1: roughly x+90..x+170 (right half)
+  const ax=autobreeder.x, ay=autobreeder.y;
+  if(sy<ay-20||sy>ay+120)return false;
+  let slotIdx=-1;
+  if(sx>=ax+5 && sx<=ax+75) slotIdx=0;
+  else if(sx>=ax+95 && sx<=ax+165) slotIdx=1;
+  if(slotIdx===-1)return false;
+  if(autobreeder.slots[slotIdx])return false; // already filled
+  // Shrimp can be slotted only if ownership rule allows: keep at least 1 per tier
+  const t=getType(droppedShrimp.type);
+  const tierTotal=shrimps.filter(x=>getType(x.type)?.tier===t.tier).length;
+  if(tierTotal<=1){
+    notify('Need at least 1 of this tier in tank!','#ff8888');
+    return false;
+  }
+  autobreeder.slots[slotIdx]=droppedShrimp.type;
+  autobreeder.accum=0;
+  updateAutobreederCycle();
+  // Remove the shrimp from the tank (it's now in the slot)
+  removeShrimp(droppedShrimp);
+  renderAutobreeder();
+  return true;
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── Shrimp Magnet ────────────────────────────────────────────────────────────
+let nextMagnetId=1;
+let draggingMagnet=null; // {magnet, offsetX, offsetY}
+
+const MAGNET_W=140, MAGNET_H=110;
+const MAGNET_ORBIT_RADIUS=90; // shrimp orbit at this distance from center
+const MAGNET_ORBIT_BAND=22;   // +/- variation so they don't form a perfect ring
+
+function spawnMagnet(){
+  const m={
+    id:nextMagnetId++,
+    x:30+magnets.length*20,
+    y:60+magnets.length*20,
+    locked:false,
+    polarity:'attract',
+    targetType:null,
+    el:null,
+  };
+  magnets.push(m);
+  buildMagnetEl(m);
+  renderMagnetTaskbar();
+}
+
+function magnetCx(m){return m.x+MAGNET_W/2;}
+function magnetCy(m){return m.y+MAGNET_H/2;}
+
+function buildMagnetEl(m){
+  const div=document.createElement('div');
+  div.className='magnet';
+  div.style.left=m.x+'px';
+  div.style.top=m.y+'px';
+  inner.appendChild(div);
+  m.el=div;
+  renderMagnet(m);
+
+  // Drag handle: anywhere on the puck (when unlocked)
+  div.addEventListener('mousedown',e=>{
+    if(m.locked)return;
+    e.stopPropagation();
+    e.preventDefault();
+    const rect=tankEl.getBoundingClientRect();
+    const wx=(e.clientX-rect.left)/camScale+camX;
+    const wy=(e.clientY-rect.top)/camScale+camY;
+    draggingMagnet={magnet:m,offsetX:wx-m.x,offsetY:wy-m.y};
+    div.classList.add('magnet-dragging');
+  });
+}
+
+function renderMagnet(m){
+  if(!m.el)return;
+  const targetT=m.targetType?getType(m.targetType):null;
+  const polarityClass=m.polarity==='attract'?'polarity-attract':'polarity-repel';
+  m.el.innerHTML=`
+    <div class="magnet-puck ${polarityClass}" title="Magnet ${m.id} — use taskbar below to control">
+      <div class="magnet-puck-icon">🧲</div>
+      <div class="magnet-puck-id">${m.id}</div>
+      ${targetT?`<div class="magnet-puck-dot" style="background:${targetT.color}"></div>`:''}
+      ${m.locked?`<div class="magnet-puck-lock">🔒</div>`:''}
+    </div>`;
+  // Single click on the puck pulses the matching taskbar entry to help locate it
+  m.el.querySelector('.magnet-puck').addEventListener('click',e=>{
+    e.stopPropagation();
+    const tbCard=document.querySelector(`.mtb-card[data-magnet-id="${m.id}"]`);
+    if(tbCard){
+      tbCard.classList.add('mtb-pulse');
+      setTimeout(()=>tbCard.classList.remove('mtb-pulse'),600);
+    }
+  });
+  renderMagnetTaskbar();
+}
+
+// ── Magnet Taskbar (bottom-center, fixed screen position) ───────────────────
+let mtbDocked=true; // tracks whether the taskbar is in its default docked position
+let mtbDrag=null;
+
+function renderMagnetTaskbar(){
+  let bar=document.getElementById('magnet-taskbar');
+  if(!bar){
+    bar=document.createElement('div');
+    bar.id='magnet-taskbar';
+    document.body.appendChild(bar);
+  }
+  if(!magnets.length){bar.style.display='none';return;}
+  bar.style.display='flex';
+  bar.innerHTML='';
+
+  // Drag grip on the left
+  const grip=document.createElement('div');
+  grip.className='mtb-grip';
+  grip.title='Drag to move taskbar';
+  grip.innerHTML='<div class="mtb-grip-dots">⋮⋮</div>';
+  grip.addEventListener('mousedown',e=>{
+    e.preventDefault();
+    e.stopPropagation();
+    const rect=bar.getBoundingClientRect();
+    mtbDrag={offsetX:e.clientX-rect.left, offsetY:e.clientY-rect.top};
+  });
+  bar.appendChild(grip);
+
+  for(const m of magnets){
+    const targetT=m.targetType?getType(m.targetType):null;
+    const polarityLabel=m.polarity==='attract'?'⊕ ATTRACT':'⊖ REPEL';
+    const polarityClass=m.polarity==='attract'?'polarity-attract':'polarity-repel';
+    const lockIcon=m.locked?'🔒':'🔓';
+    const card=document.createElement('div');
+    card.className=`mtb-card ${polarityClass}`;
+    card.dataset.magnetId=m.id;
+    card.innerHTML=`
+      <div class="mtb-header">
+        <span class="mtb-id">🧲 ${m.id}</span>
+        <button class="mtb-btn mtb-recall" title="Recall magnet to top-left of tank">↩</button>
+        <button class="mtb-btn mtb-lock" title="${m.locked?'Unlock to move':'Lock in place'}">${lockIcon}</button>
+        <button class="mtb-btn mtb-delete" title="Remove magnet">✕</button>
+      </div>
+      <div class="mtb-slot ${targetT?'filled':''}" title="${targetT?'Click to eject':'Drag a shrimp from the tank here'}">
+        ${targetT
+          ? `<div class="mtb-slot-dot" style="background:${targetT.color}"></div><div class="mtb-slot-name">${targetT.name.replace(' Shrimp','')}</div>`
+          : `<div class="mtb-slot-empty">drop shrimp</div>`}
+      </div>
+      <button class="mtb-btn mtb-polarity">${polarityLabel}</button>`;
+
+    card.querySelector('.mtb-recall').addEventListener('click',e=>{
+      e.stopPropagation();
+      m.x=30; m.y=60;
+      m.locked=false;
+      m.el.style.left=m.x+'px';
+      m.el.style.top=m.y+'px';
+      renderMagnet(m);
+      notify('Magnet '+m.id+' recalled');
+    });
+
+    card.querySelector('.mtb-lock').addEventListener('click',e=>{
+      e.stopPropagation();
+      m.locked=!m.locked;
+      renderMagnet(m);
+    });
+    card.querySelector('.mtb-polarity').addEventListener('click',e=>{
+      e.stopPropagation();
+      m.polarity=m.polarity==='attract'?'repel':'attract';
+      renderMagnet(m);
+    });
+    card.querySelector('.mtb-delete').addEventListener('click',e=>{
+      e.stopPropagation();
+      // Refund 50% of the marginal cost of the most recent magnet purchase
+      const N=magnets.length; // current count, magnet to be removed brings count from N to N-1
+      const lastMarginalCost=Math.round(500000*Math.pow(1.5,N-1));
+      const refund=Math.floor(lastMarginalCost*0.5);
+      m.el.remove();
+      magnets=magnets.filter(x=>x!==m);
+      money+=refund;
+      moneyEl.textContent=Math.floor(money).toLocaleString();
+      notify('Magnet removed — refunded $'+refund.toLocaleString(),'#ffd97a');
+      renderMagnetTaskbar();
+      renderUpgrades();
+    });
+    card.querySelector('.mtb-slot').addEventListener('click',e=>{
+      e.stopPropagation();
+      if(m.targetType){
+        const ejectedType=m.targetType;
+        m.targetType=null;
+        renderMagnet(m);
+        shrimpCapBypass=true;
+        createShrimp(ejectedType, magnetCx(m)+(Math.random()-0.5)*40, magnetCy(m)+MAGNET_H/2+30);
+        shrimpCapBypass=false;
+        notify('Released '+getType(ejectedType).name);
+      }
+    });
+
+    // Briefly highlight the in-tank puck when hovering the card
+    card.addEventListener('mouseenter',()=>{
+      if(m.el)m.el.classList.add('magnet-highlighted');
+    });
+    card.addEventListener('mouseleave',()=>{
+      if(m.el)m.el.classList.remove('magnet-highlighted');
+    });
+
+    bar.appendChild(card);
+  }
+
+  // Recall-to-dock button (only shown when taskbar has been moved away from default)
+  if(!mtbDocked){
+    const recallBar=document.createElement('button');
+    recallBar.className='mtb-recall-bar';
+    recallBar.title='Return taskbar to its default position at the bottom-center';
+    recallBar.textContent='↩ Dock';
+    recallBar.addEventListener('click',e=>{
+      e.stopPropagation();
+      mtbDocked=true;
+      bar.style.left='';bar.style.top='';bar.style.right='';bar.style.bottom='';bar.style.transform='';
+      renderMagnetTaskbar();
+      updateMagnetTaskbarPosition();
+    });
+    bar.appendChild(recallBar);
+  }
+  // Sync the bar's vertical position with the Shrimpedia state
+  updateMagnetTaskbarPosition();
+}
+
+// Global mousemove/up to drive magnet taskbar dragging
+document.addEventListener('mousemove',e=>{
+  if(!mtbDrag)return;
+  const bar=document.getElementById('magnet-taskbar');
+  if(!bar)return;
+  mtbDocked=false;
+  bar.style.left=Math.max(0,Math.min(window.innerWidth-100,e.clientX-mtbDrag.offsetX))+'px';
+  bar.style.top=Math.max(0,Math.min(window.innerHeight-50,e.clientY-mtbDrag.offsetY))+'px';
+  bar.style.right='auto';bar.style.bottom='auto';bar.style.transform='none';
+});
+document.addEventListener('mouseup',()=>{
+  if(mtbDrag){
+    mtbDrag=null;
+    renderMagnetTaskbar(); // re-render to show the Dock button
+  }
+});
+
+function magnetTaskbarHover(mouseX,mouseY){
+  if(!magnets.length)return false;
+  for(const m of magnets){
+    const card=document.querySelector(`.mtb-card[data-magnet-id="${m.id}"]`);
+    if(!card)continue;
+    const slot=card.querySelector('.mtb-slot');
+    if(!slot)continue;
+    const rect=slot.getBoundingClientRect();
+    if(mouseX>=rect.left&&mouseX<=rect.right&&mouseY>=rect.top&&mouseY<=rect.bottom){
+      if(m.targetType){
+        slot.classList.add('magnet-slot-bad');
+        showBreed('Magnet slot already filled — click slot to eject first','#ff8888');
+      } else {
+        slot.classList.add('magnet-slot-ok');
+        showBreed('Drop to set magnet target','#00ff88');
+      }
+      return true;
+    }
+  }
+  return false;
+}
+
+function checkMagnetDrop(droppedShrimp, mouseX, mouseY){
+  if(!magnets.length)return false;
+  // Check taskbar slot drops in screen space
+  if(mouseX!=null&&mouseY!=null){
+    for(const m of magnets){
+      const card=document.querySelector(`.mtb-card[data-magnet-id="${m.id}"]`);
+      if(!card)continue;
+      const slot=card.querySelector('.mtb-slot');
+      if(!slot)continue;
+      const rect=slot.getBoundingClientRect();
+      if(mouseX>=rect.left&&mouseX<=rect.right&&mouseY>=rect.top&&mouseY<=rect.bottom){
+        if(m.targetType){
+          notify('Magnet slot already filled — eject it first','#ff8888');
+          return false;
+        }
+        m.targetType=droppedShrimp.type;
+        renderMagnet(m);
+        removeShrimp(droppedShrimp);
+        return true;
+      }
+    }
+  }
+  // Check in-tank puck drops (drop a shrimp directly onto the magnet circle)
+  // Use the shrimp's center vs magnet center; ~74px puck radius is ~37
+  const sCx=droppedShrimp.x+SHRIMP_HALF, sCy=droppedShrimp.y+SHRIMP_HALF;
+  for(const m of magnets){
+    const dx=magnetCx(m)-sCx, dy=magnetCy(m)-sCy;
+    if(Math.hypot(dx,dy)<55){
+      if(m.targetType){
+        notify('Magnet '+m.id+' already targeting '+getType(m.targetType).name+' — eject first','#ff8888');
+        return false;
+      }
+      m.targetType=droppedShrimp.type;
+      renderMagnet(m);
+      removeShrimp(droppedShrimp);
+      notify('Magnet '+m.id+' targeting '+getType(droppedShrimp.type).name);
+      return true;
+    }
+  }
+  return false;
+}
+
+// Loiter zone — shrimp will hang out roughly within this radius around the magnet
+const MAGNET_LOITER_RADIUS=140;
+// Repel barrier — shrimp avoid this radius around a repelling magnet (~1/4 base tank width)
+const MAGNET_REPEL_RADIUS=600; // 2400/4 = 600
+// Sprite half-size so positions center on the visual middle of the shrimp
+const SHRIMP_HALF=32;
+
+function tickMagnets(dt){
+  if(!magnets.length)return;
+  const byType={};
+  for(const m of magnets){
+    if(!m.targetType)continue;
+    if(!byType[m.targetType])byType[m.targetType]=[];
+    byType[m.targetType].push(m);
+  }
+  if(!Object.keys(byType).length)return;
+
+  for(const s of shrimps){
+    if(s.id===dragS?.id)continue;
+    const ms=byType[s.type];
+    if(!ms||!ms.length)continue;
+    // Use the shrimp's visual center for distance checks
+    const sCx=s.x+SHRIMP_HALF, sCy=s.y+SHRIMP_HALF;
+    // Pick the closest magnet
+    let best=null,bestDist=Infinity;
+    for(const m of ms){
+      const dx=magnetCx(m)-sCx, dy=magnetCy(m)-sCy;
+      const d=Math.sqrt(dx*dx+dy*dy);
+      if(d<bestDist){bestDist=d;best=m;}
+    }
+    if(!best)continue;
+    const cx=magnetCx(best), cy=magnetCy(best);
+    const dx=cx-sCx, dy=cy-sCy;
+    const dist=Math.sqrt(dx*dx+dy*dy)||0.001;
+
+    if(best.polarity==='attract'){
+      // Soft loiter — shrimp seek wander targets inside a ring around the magnet,
+      // adjusted so the SPRITE (not top-left) ends up centered on the target point
+      if(dist>MAGNET_LOITER_RADIUS){
+        if(!s.wanderTarget||s.wanderTimer<=0||
+           Math.hypot(s.wanderTarget.x+SHRIMP_HALF-cx,s.wanderTarget.y+SHRIMP_HALF-cy)>MAGNET_LOITER_RADIUS){
+          const angle=Math.random()*Math.PI*2;
+          const r=Math.random()*MAGNET_LOITER_RADIUS*0.85;
+          // wanderTarget is set as a top-left position; subtract half-sprite so center lands on the ring
+          s.wanderTarget={
+            x:Math.max(0,Math.min(TANK_W-64,cx+Math.cos(angle)*r-SHRIMP_HALF)),
+            y:Math.max(0,Math.min(TANK_H-64,cy+Math.sin(angle)*r-SHRIMP_HALF))
+          };
+          s.wanderTimer=4+Math.random()*4;
+        }
+      } else {
+        if(!s.wanderTarget||s.wanderTimer<=0){
+          const angle=Math.random()*Math.PI*2;
+          const r=Math.random()*MAGNET_LOITER_RADIUS;
+          s.wanderTarget={
+            x:Math.max(0,Math.min(TANK_W-64,cx+Math.cos(angle)*r-SHRIMP_HALF)),
+            y:Math.max(0,Math.min(TANK_H-64,cy+Math.sin(angle)*r-SHRIMP_HALF))
+          };
+          s.wanderTimer=3+Math.random()*5;
+        }
+      }
+    } else {
+      // Repel — soft barrier. If the shrimp is INSIDE the repel radius, gently nudge them out
+      // and redirect their wander target to just outside the radius. Outside the radius, do nothing.
+      if(dist<MAGNET_REPEL_RADIUS){
+        // Falloff: stronger near magnet, zero at edge of barrier
+        const t=1-(dist/MAGNET_REPEL_RADIUS); // 1 near magnet, 0 at edge
+        const repelStrength=140*t;
+        s.x-=(dx/dist)*repelStrength*dt;
+        s.y-=(dy/dist)*repelStrength*dt;
+        // If wander target is inside the barrier, move it outside
+        const wtCx=s.wanderTarget?(s.wanderTarget.x+SHRIMP_HALF):sCx;
+        const wtCy=s.wanderTarget?(s.wanderTarget.y+SHRIMP_HALF):sCy;
+        const wtDist=Math.hypot(wtCx-cx,wtCy-cy);
+        if(!s.wanderTarget||wtDist<MAGNET_REPEL_RADIUS||s.wanderTimer<=0){
+          // Place new target just outside the barrier in the direction the shrimp is being pushed
+          const escapeDist=MAGNET_REPEL_RADIUS+30+Math.random()*120;
+          const escapeAngle=Math.atan2(-dy,-dx)+(Math.random()-0.5)*0.6; // away from magnet, with some spread
+          s.wanderTarget={
+            x:Math.max(0,Math.min(TANK_W-64,cx+Math.cos(escapeAngle)*escapeDist-SHRIMP_HALF)),
+            y:Math.max(0,Math.min(TANK_H-64,cy+Math.sin(escapeAngle)*escapeDist-SHRIMP_HALF))
+          };
+          s.wanderTimer=3+Math.random()*4;
+        }
+        s.x=Math.max(0,Math.min(TANK_W-50,s.x));
+        s.y=Math.max(0,Math.min(TANK_H-60,s.y));
+      }
+      // Outside the barrier — leave the shrimp alone
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+function renderUpgrades(){
+  const el=document.getElementById('upgrades-list');
+  if(!el)return;
+  el.innerHTML='';
+  const typesFound=discovered.size;
+  for(const u of UPGRADES){
+    const owned=u.countFn();
+    const requirementMet=u.requires?u.requires():true;
+    // Once threshold has ever been met, the upgrade stays permanently unlocked
+    if(u.unlockTypes && typesFound>=u.unlockTypes) unlockedUpgrades.add(u.id);
+    const typeUnlockMet=!u.unlockTypes || unlockedUpgrades.has(u.id);
+    const atMax=u.maxOwn&&owned>=u.maxOwn;
+    const price=u.priceFn();
+    const canAfford=money>=price && !atMax && requirementMet && typeUnlockMet;
+
+    const d=document.createElement('div');
+    d.className='shrimp-card upgrade-card'+(canAfford?' affordable':'');
+    if(!requirementMet||!typeUnlockMet)d.style.opacity='0.5';
+    let actionText;
+    if(atMax) actionText='<div class="sc-price" style="color:#88ff88">Maxed</div>';
+    else if(!typeUnlockMet) actionText=`<div class="sc-price" style="color:rgba(255,180,90,0.85)">🔒 ${typesFound} / ${u.unlockTypes} types found</div>`;
+    else if(!requirementMet) actionText='<div class="sc-price" style="color:rgba(255,255,255,0.3)">Locked</div>';
+    else actionText=`<div class="sc-price">Buy: $${price.toLocaleString()}</div>`;
+
+    d.innerHTML=`<div class="sc-name"><span style="font-size:14px">${u.icon}</span>${u.name}${owned?` <span style="color:rgba(255,255,255,0.5)">×${owned}</span>`:''}</div>
+      <div class="sc-info">${u.desc}</div>
+      ${actionText}`;
+    d.addEventListener('click',()=>{
+      if(atMax){notify('Already maxed!','#ff8888');return;}
+      if(!typeUnlockMet){notify(`Locked — discover ${u.unlockTypes} shrimp types to unlock`,'#ff8888');return;}
+      if(!requirementMet){notify('Requirement not met!','#ff8888');return;}
+      const cur=u.priceFn();
+      if(money>=cur){
+        money-=cur;moneyEl.textContent=Math.floor(money).toLocaleString();
+        u.onBuy();
+        renderUpgrades();
+      } else notify('Not enough money!','#ff8888');
+    });
+    el.appendChild(d);
+  }
+  const cnt=document.getElementById('upgrades-count');
+  if(cnt){
+    const total=UPGRADES.reduce((s,u)=>s+u.countFn(),0);
+    cnt.textContent=total?`${total} owned`:'';
+  }
+}
+// ══ END UPGRADES SYSTEM ══════════════════════════════════════════════════════
+
+// ══ STOCK MARKET SYSTEM ══════════════════════════════════════════════════════
+
+// ─── MARKET TUNING — adjust these to taste ───────────────────────────────────
+const MARKET_TUNING={
+  TICK_NOISE: 0.008,        // ±0.8% random walk per tick (was 0.5%) — more chart life
+  MEAN_REVERSION: 0.006,    // 0.6% pull (was 0.8%) — events linger longer
+  TRADE_IMPACT: 0.012,      // 1.2% per unit (was 0.6%) — manipulation matters more
+  STREAK_DIMINISH: 0.25,    // softer streak penalty so big trades still hit
+  SHOCK_DECAY: 0.04,        // slower decay
+  EVENT_INTERVAL_MIN: 45,
+  EVENT_INTERVAL_MAX: 135,
+  EVENT_DECAY: 0.03,        // events linger noticeably longer
+};
+// ──────────────────────────────────────────────────────────────────────────────
+
+const stockPrices={};
+const stockHistory={};
+const stockShock={};
+const HISTORY_LEN=60;
+let selectedStock=null;
+let stockTick=0;
+let nextEventIn=30+Math.random()*60;
+
+// Base price per tier
+function basePrice(t){return t.tier===1?100:t.tier===2?250:600;}
+
+// Init prices for all discovered types
+function initStockPrice(id){
+  if(stockPrices[id]!==undefined)return;
+  const t=getType(id);if(!t)return;
+  const bp=basePrice(t);
+  stockPrices[id]=bp;
+  stockHistory[id]=Array(HISTORY_LEN).fill(bp);
+  stockShock[id]={mag:0,decay:0};
+}
+
+// Call when a new shrimp is discovered
+function onDiscover(id){initStockPrice(id);}
+
+// Tick stock prices (called from gameLoop every second)
+let stockSecAccum=0;
+function tickStocks(dt){
+  stockSecAccum+=dt;
+  if(stockSecAccum<1)return;
+  stockSecAccum=0;
+  stockTick++;
+
+  for(const id of discovered){
+    if(stockPrices[id]===undefined)initStockPrice(id);
+    const t=getType(id);if(!t)continue;
+    // Prawnstige market bonuses
+    const swing=getPrawnstigeBonus(id,'market_swing')/100;          // larger noise
+    const recovery=getPrawnstigeBonus(id,'recovery_speed')/100;     // faster mean reversion
+    const basePctBoost=getPrawnstigeBonus(id,'base_price')/100;     // higher floor
+    const crashDampen=getPrawnstigeBonus(id,'crash_dampen')/100;    // softer negative shocks
+    const bp=basePrice(t)*(1+basePctBoost);
+    const shock=stockShock[id];
+
+    const drift=(bp-stockPrices[id])*(MARKET_TUNING.MEAN_REVERSION*(1+recovery));
+    const noise=(Math.random()-0.5)*stockPrices[id]*MARKET_TUNING.TICK_NOISE*(1+swing);
+    let shockEffect=shock.mag;
+    if(shockEffect<0)shockEffect*=(1-crashDampen); // dampen losses only
+    shock.mag*=(1-shock.decay);
+    if(Math.abs(shock.mag)<0.3)shock.mag=0;
+
+    stockPrices[id]=Math.max(5,stockPrices[id]+drift+noise+shockEffect);
+    stockHistory[id].push(stockPrices[id]);
+    if(stockHistory[id].length>HISTORY_LEN)stockHistory[id].shift();
+  }
+
+  // Random event timer
+  nextEventIn-=1;
+  if(nextEventIn<=0){
+    triggerRandomEvent();
+    nextEventIn=MARKET_TUNING.EVENT_INTERVAL_MIN+Math.random()*(MARKET_TUNING.EVENT_INTERVAL_MAX-MARKET_TUNING.EVENT_INTERVAL_MIN);
+  }
+
+  // Re-render stock list every 2 ticks (chart still updates every tick)
+  if(stockTick%2===0)renderStockList();
+  if(selectedStock)drawChart(selectedStock);
+  // Re-render inventory/shop/upgrades only every 3 ticks
+  if(stockTick%3===0){
+    renderInventory();
+    renderShop();
+    renderUpgrades();
+  }
+}
+
+// Apply market impact when player buys/sells shrimp
+// Diminishing returns: each successive same-direction trade has less effect
+function marketImpact(typeId, qty, buying){
+  initStockPrice(typeId);
+  const t=getType(typeId);if(!t)return;
+  const dir=buying?1:-1;
+  const ts=stockShock[typeId].lastTradeSide||0;
+  const sameDir=ts===dir?(stockShock[typeId].streak||0)+1:0;
+  stockShock[typeId].lastTradeSide=dir;
+  stockShock[typeId].streak=sameDir;
+  const diminishFactor=1/(1+sameDir*MARKET_TUNING.STREAK_DIMINISH);
+  const swing=getPrawnstigeBonus(typeId,'market_swing')/100;
+  const mag=dir*stockPrices[typeId]*MARKET_TUNING.TRADE_IMPACT*(1+swing)*qty*diminishFactor;
+  stockShock[typeId].mag+=mag;
+  stockShock[typeId].decay=MARKET_TUNING.SHOCK_DECAY;
+}
+
+// ── Random event templates ──────────────────────────────────────────────────
+const EVENT_TEMPLATES=[
+  {positive:false,
+    headline:(a,b)=>`CEO of ${a.name} found dead — foul play suspected`,
+    ticker:(a,b)=>`<strong>${a.name}</strong> shares in freefall after CEO found deceased in mysterious circumstances. Analysts predict prolonged downturn. ${b?`<strong>${b.name}</strong> up on suspected market consolidation.`:''}`,
+    effect:(a,b)=>{shock(a.id,-0.45,0.04);if(b)shock(b.id,+0.20,0.03);}
+  },
+  {positive:false,
+    headline:(a,b)=>`${b?b.name+' seizes':'Regulators seize'} ${a.name} assets`,
+    ticker:(a,b)=>`Breaking: ${a.name} assets frozen following regulatory action. ${b?`<strong>${b.name}</strong> acquires distressed holdings at record low.`:'Market in shock.'}`,
+    effect:(a,b)=>{shock(a.id,-0.55,0.05);if(b)shock(b.id,+0.30,0.03);}
+  },
+  {positive:false,
+    headline:(a,b)=>`${a.name} announces record breeding season`,
+    ticker:(a,b)=>`${a.name} reports unprecedented spawn rates this quarter. Surplus supply expected to weigh on prices. Investors dump holdings.`,
+    effect:(a,b)=>{shock(a.id,-0.25,0.04);}
+  },
+  {positive:true,
+    headline:(a,b)=>`Shortage of ${a.name} drives prices skyward`,
+    ticker:(a,b)=>`A mysterious parasite has decimated <strong>${a.name}</strong> populations. Analysts call it a once-in-a-century supply shock. ${b?`<strong>${b.name}</strong> seen as substitute — demand surging.`:''}`,
+    effect:(a,b)=>{shock(a.id,+0.50,0.04);if(b)shock(b.id,+0.15,0.03);}
+  },
+  {positive:false,
+    headline:(a,b)=>`${a.name} linked to shrimp laundering scandal`,
+    ticker:(a,b)=>`Investigators allege <strong>${a.name}</strong> used as vehicle for large-scale shrimp laundering. Class action lawsuit filed. Market confidence shattered.`,
+    effect:(a,b)=>{shock(a.id,-0.40,0.05);}
+  },
+  {positive:true,
+    headline:(a,b)=>`${b?b.name+' merger with':'Takeover bid for'} ${a.name} confirmed`,
+    ticker:(a,b)=>`${b?`<strong>${b.name}</strong> confirms hostile takeover of`:'Anonymous bidder targets'} <strong>${a.name}</strong>. Premium of 40% offered to shareholders. ${b?`<strong>${b.name}</strong> dips on dilution fears.`:''}`,
+    effect:(a,b)=>{shock(a.id,+0.35,0.04);if(b)shock(b.id,-0.15,0.03);}
+  },
+  {positive:false,
+    headline:(a,b)=>`${a.name} declared endangered — exports halted`,
+    ticker:(a,b)=>`International council places <strong>${a.name}</strong> on protected list. Export ban effective immediately. Black market prices spike while regulated market crashes.`,
+    effect:(a,b)=>{shock(a.id,-0.35,0.05);}
+  },
+  {positive:true,
+    headline:(a,b)=>`Influencer declares ${a.name} "the hottest pet of the year"`,
+    ticker:(a,b)=>`Social media frenzy pushes <strong>${a.name}</strong> demand to all-time high after viral video accumulates 200M views. Breeders can't keep up.`,
+    effect:(a,b)=>{shock(a.id,+0.45,0.04);}
+  },
+];
+
+function shock(id,pct,decay){
+  initStockPrice(id);
+  stockShock[id].mag+=stockPrices[id]*pct;
+  stockShock[id].decay=decay??MARKET_TUNING.EVENT_DECAY;
+}
+
+function triggerRandomEvent(){
+  const disc=[...discovered].filter(id=>getType(id));
+  if(disc.length<1)return;
+  // Choose target shrimp first — bias toward shrimp with the most upgrades to make events feel meaningful
+  const a=getType(disc[Math.floor(Math.random()*disc.length)]);
+  // good_event_chance: roll a re-pick toward a positive template
+  const goodBonus=getPrawnstigeBonus(a.id,'good_event_chance')/100;
+  let tmpl=EVENT_TEMPLATES[Math.floor(Math.random()*EVENT_TEMPLATES.length)];
+  if(!tmpl.positive && goodBonus>0 && Math.random()<goodBonus){
+    const positives=EVENT_TEMPLATES.filter(e=>e.positive);
+    if(positives.length)tmpl=positives[Math.floor(Math.random()*positives.length)];
+  }
+  let b=null;
+  if(disc.length>1){
+    const others=disc.filter(id=>id!==a.id);
+    b=Math.random()<0.5?getType(others[Math.floor(Math.random()*others.length)]):null;
+  }
+  const headline=tmpl.headline(a,b);
+  const ticker=tmpl.ticker(a,b);
+  tmpl.effect(a,b);
+  showNewsBanner(headline,ticker);
+}
+
+function showNewsBanner(headline,tickerText){
+  document.getElementById('news-alert-title').textContent=headline;
+  document.getElementById('news-ticker-text').innerHTML=tickerText+' &nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;&nbsp; '+tickerText;
+  const banner=document.getElementById('news-banner');
+  banner.style.display='flex';
+  // Restart ticker animation
+  const inner=document.getElementById('news-ticker-inner');
+  inner.style.animation='none';
+  setTimeout(()=>inner.style.animation='ticker-scroll 35s linear infinite',50);
+  // Auto-dismiss after 20s
+  clearTimeout(banner._t);
+  banner._t=setTimeout(dismissNews,20000);
+}
+
+function dismissNews(){
+  const banner=document.getElementById('news-banner');
+  banner.style.display='none';
+  // Stop the ticker animation when hidden so it doesn't waste GPU
+  const inner=document.getElementById('news-ticker-inner');
+  if(inner)inner.style.animation='none';
+  clearTimeout(banner._t);
+}
+
+// ── Render stock list ────────────────────────────────────────────────────────
+function renderStockList(){
+  const list=document.getElementById('stock-list');
+  let discArr=[...discovered].map(id=>getType(id)).filter(Boolean);
+  if(!discArr.length){list.innerHTML='<div style="padding:12px;font-size:11px;color:rgba(255,255,255,0.3)">Breed shrimp to list them</div>';return;}
+  // Apply search filter
+  if(stockSearchQuery){
+    discArr=discArr.filter(t=>t.name.toLowerCase().includes(stockSearchQuery));
+  }
+  if(!discArr.length){list.innerHTML='<div style="padding:12px;font-size:11px;color:rgba(255,255,255,0.3)">No matches</div>';return;}
+
+  list.innerHTML='';
+  // Group by tier with collapsible headers
+  for(const tier of [1,2,3]){
+    const tierItems=discArr.filter(t=>t.tier===tier);
+    if(!tierItems.length)continue;
+    tierItems.sort((a,b)=>stockPrices[b.id]-stockPrices[a.id]);
+    const tierKey='stock-tier-'+tier;
+    const isCollapsed=stockTierCollapsed[tier]||false;
+    const hdr=document.createElement('div');
+    hdr.className='stock-tier-header';
+    hdr.innerHTML=`<span>${isCollapsed?'▶':'▼'} Tier ${tier}</span><span class="stock-tier-count">${tierItems.length}</span>`;
+    hdr.addEventListener('click',()=>{stockTierCollapsed[tier]=!isCollapsed;renderStockList();});
+    list.appendChild(hdr);
+    if(isCollapsed)continue;
+
+    for(const t of tierItems){
+      initStockPrice(t.id);
+      const hist=stockHistory[t.id];
+      const cur=stockPrices[t.id];
+      const prev=hist[hist.length-2]||cur;
+      const bp=basePrice(t);
+      const pctChange=((cur-prev)/prev*100);
+      const pctFromBase=((cur-bp)/bp*100);
+      const dir=pctChange>0.05?'up':pctChange<-0.05?'down':'flat';
+
+      const row=document.createElement('div');
+      row.className='stock-row'+(selectedStock===t.id?' selected':'');
+      row.innerHTML=`
+        <div class="sr-top">
+          <span class="sr-dot" style="background:${t.color}"></span>
+          <span class="sr-name">${t.name}</span>
+          <span class="sr-price ${dir}">$${cur.toFixed(1)}</span>
+        </div>
+        <div class="sr-change ${dir}">${pctChange>=0?'+':''}${pctChange.toFixed(2)}% &nbsp;|&nbsp; ${pctFromBase>=0?'+':''}${pctFromBase.toFixed(1)}% from base</div>
+        <canvas class="sr-sparkline" width="270" height="22" data-id="${t.id}"></canvas>`;
+      row.addEventListener('click',()=>{selectedStock=t.id;renderStockList();drawChart(t.id);});
+      list.appendChild(row);
+      const spark=row.querySelector('.sr-sparkline');
+      drawSparkline(spark,hist,t.color,dir);
+    }
+  }
+}
+const stockTierCollapsed={1:false,2:false,3:false};
+
+function drawSparkline(canvas,hist,color,dir){
+  const ctx=canvas.getContext('2d');
+  const W=canvas.width,H=canvas.height;
+  ctx.clearRect(0,0,W,H);
+  if(hist.length<2)return;
+  const mn=Math.min(...hist),mx=Math.max(...hist);
+  const range=mx-mn||1;
+  ctx.beginPath();
+  ctx.strokeStyle=dir==='up'?'#3ddc84':dir==='down'?'#ff5555':'rgba(255,255,255,0.3)';
+  ctx.lineWidth=1.5;
+  for(let i=0;i<hist.length;i++){
+    const x=i/(hist.length-1)*W;
+    const y=H-(hist[i]-mn)/range*(H-4)-2;
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  }
+  ctx.stroke();
+}
+
+// ── Full chart ───────────────────────────────────────────────────────────────
+function drawChart(id){
+  const t=getType(id);if(!t)return;
+  const canvas=document.getElementById('stock-chart-canvas');
+  const W=canvas.offsetWidth||280;canvas.width=W;
+  const H=canvas.height;
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,W,H);
+  const hist=stockHistory[id];
+  if(!hist||hist.length<2)return;
+
+  document.getElementById('chart-label').innerHTML=`<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${t.color};margin-right:5px"></span>${t.name}`;
+  const cur=stockPrices[id];
+  const bp=basePrice(t);
+  const chg=((cur-bp)/bp*100);
+  document.getElementById('chart-price').textContent=`$${cur.toFixed(2)} (${chg>=0?'+':''}${chg.toFixed(1)}%)`;
+
+  const mn=Math.min(...hist),mx=Math.max(...hist);
+  const range=mx-mn||1;
+  const pad=10;
+
+  // Grid lines
+  ctx.strokeStyle='rgba(255,255,255,0.05)';ctx.lineWidth=1;
+  for(let i=0;i<=4;i++){
+    const y=pad+(H-pad*2)/4*i;
+    ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();
+    const val=mx-(range/4)*i;
+    ctx.fillStyle='rgba(255,255,255,0.25)';ctx.font='8px system-ui';ctx.textAlign='right';
+    ctx.fillText('$'+val.toFixed(0),W-2,y-2);
+  }
+
+  // Base price line
+  const baseY=pad+(H-pad*2)*(1-(bp-mn)/range);
+  ctx.beginPath();ctx.setLineDash([4,4]);
+  ctx.strokeStyle='rgba(255,215,0,0.3)';ctx.lineWidth=1;
+  ctx.moveTo(0,baseY);ctx.lineTo(W,baseY);ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Price line + fill
+  const isUp=cur>=bp;
+  const lineColor=isUp?'#3ddc84':'#ff5555';
+  ctx.beginPath();
+  for(let i=0;i<hist.length;i++){
+    const x=i/(hist.length-1)*(W-4)+2;
+    const y=pad+(H-pad*2)*(1-(hist[i]-mn)/range);
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  }
+  ctx.strokeStyle=lineColor;ctx.lineWidth=2;ctx.stroke();
+
+  // Fill under line
+  ctx.lineTo(W-2,H-pad);ctx.lineTo(2,H-pad);ctx.closePath();
+  ctx.fillStyle=isUp?'rgba(61,220,132,0.08)':'rgba(255,85,85,0.08)';
+  ctx.fill();
+}
+
+// Patch createShrimp to init stock on discovery
+const _origCreateShrimp=createShrimp;
+// We'll call initStockPrice inside the existing notify path instead
+// Hook: after discovered.add inside createShrimp — done via tickStocks scanning discovered set
+
+// ══ END STOCK MARKET SYSTEM ══════════════════════════════════════════════════
+
+// ══ SAVE / LOAD SYSTEM ═══════════════════════════════════════════════════════
+const SAVE_KEY='shrimphony_save_v1';
+
+function loadGame(){
+  try{
+    const raw=localStorage.getItem(SAVE_KEY);
+    if(!raw)return false;
+    const data=JSON.parse(raw);
+    if(!data||typeof data.money!=='number')return false;
+
+    shrimps.length=0;
+    for(const s of snails)s.el?.remove();
+    snails.length=0;
+    for(const c of coins)c.el?.remove();
+    coins.length=0;
+    if(autobreeder?.el)autobreeder.el.remove();
+    autobreeder=null;
+    for(const m of magnets)m.el?.remove();
+    magnets=[];
+
+    money=data.money;
+    nextId=data.nextId||1;
+    discovered=new Set(data.discovered||['red']);
+    camX=data.camX??300;camY=data.camY??100;camScale=data.camScale??1;
+    autobreederSpeedLevel=data.autobreederSpeedLevel||0;
+    tankExpansionLevel=data.tankExpansionLevel||0;
+    nextMagnetId=data.nextMagnetId||1;
+    nextMantisId=data.nextMantisId||1;
+    prawnstigeUpgrades=data.prawnstigeUpgrades||data.prestigeUpgrades||{};
+    prawnstigeCount=data.prawnstigeCount||data.prestigeCount||{};
+    unlockedUpgrades=new Set(data.unlockedUpgrades||[]);
+    if(tankExpansionLevel>0){
+      TANK_W=Math.round(TANK_BASE_W*(1+tankExpansionLevel*0.25));
+      applyTankSize();
+    }
+    if(tankExpansionLevel>=5){
+      spawnCave();
+      if(data.caveProgress)cave.sacrificeProgress=data.caveProgress;
+      updateCaveCounter();
+    }
+    // Restore mantises (positions/hunger only — desire/timers reset on load)
+    for(const md of (data.mantises||[])){
+      const m={
+        id:md.id||(nextMantisId++),
+        x:md.x,y:md.y,
+        flip:!!md.flip,
+        hunger:md.hunger??MANTIS_HUNGER_MAX,
+        state:'idle',           // always reload as idle so a fresh hunt cycle begins
+        desire:null,
+        targetsRemaining:0,
+        huntTimeout:0,
+        nextHuntIn:30+Math.random()*40,
+        postEatPause:0,
+        diamondAccum:0,
+        patrolTarget:null,
+        speechEl:null,
+      };
+      const sp=document.createElement('div');
+      sp.className='mantis-speech';
+      inner.appendChild(sp);
+      m.speechEl=sp;
+      mantises.push(m);
+      updateMantisSpeech(m);
+      if(m.id>=nextMantisId)nextMantisId=m.id+1;
+    }
+
+    Object.assign(stockPrices,data.stockPrices||{});
+    for(const [k,v] of Object.entries(data.stockHistory||{}))stockHistory[k]=[...v];
+    Object.assign(stockShock,data.stockShock||{});
+
+    shrimpCapBypass=true;
+    for(const s of (data.shrimps||[])){
+      const newS=createShrimp(s.type,s.x,s.y);
+      if(!newS)continue;
+      newS.bcdEnd=s.bcdEnd||0;
+      newS.flip=!!s.flip;
+    }
+    shrimpCapBypass=false;
+
+    for(const ss of (data.snails||[])){
+      spawnSnail();
+      const newSn=snails[snails.length-1];
+      newSn.x=ss.x;newSn.y=ss.y;newSn.dir=ss.dir;newSn.speed=ss.speed;
+      newSn.el.style.left=ss.x+'px';
+    }
+
+    if(data.autobreeder){
+      spawnAutobreeder();
+      autobreeder.x=data.autobreeder.x??60;
+      autobreeder.y=data.autobreeder.y??(TANK_H-200);
+      autobreeder.el.style.left=autobreeder.x+'px';
+      autobreeder.el.style.top=autobreeder.y+'px';
+      autobreeder.slots=data.autobreeder.slots||[null,null];
+      autobreeder.accum=data.autobreeder.accum||0;
+      updateAutobreederCycle();
+      renderAutobreeder();
+    }
+
+    for(const md of (data.magnets||[])){
+      const m={
+        id:md.id,
+        x:md.x??30,
+        y:md.y??60,
+        locked:!!md.locked,
+        polarity:md.polarity||'attract',
+        targetType:md.targetType||null,
+        el:null,
+        pickerOpen:false,
+      };
+      magnets.push(m);
+      buildMagnetEl(m);
+    }
+    renderMagnetTaskbar();
+
+    moneyEl.textContent=Math.floor(money).toLocaleString();
+    updateCam();updateUI();
+    return true;
+  } catch(e){console.warn('Load failed:',e);return false;}
+}
+
+let isResetting=false;
+
+function saveGame(){
+  if(isResetting)return false;
+  try{
+    const data={
+      money,
+      nextId,
+      discovered:[...discovered],
+      shrimps:shrimps.map(s=>({type:s.type,x:s.x,y:s.y,bcdEnd:s.bcdEnd,flip:s.flip})),
+      snails:snails.map(s=>({x:s.x,y:s.y,dir:s.dir,speed:s.speed})),
+      stockPrices:{...stockPrices},
+      stockHistory:Object.fromEntries(Object.entries(stockHistory).map(([k,v])=>[k,[...v]])),
+      stockShock:{...stockShock},
+      camX,camY,camScale,
+      autobreeder:autobreeder?{slots:autobreeder.slots,accum:autobreeder.accum,x:autobreeder.x,y:autobreeder.y}:null,
+      autobreederSpeedLevel,
+      tankExpansionLevel,
+      magnets:magnets.map(m=>({id:m.id,x:m.x,y:m.y,locked:m.locked,polarity:m.polarity,targetType:m.targetType})),
+      nextMagnetId,
+      prawnstigeUpgrades:{...prawnstigeUpgrades},
+      prawnstigeCount:{...prawnstigeCount},
+      unlockedUpgrades:[...unlockedUpgrades],
+      mantises:mantises.map(m=>({id:m.id,x:m.x,y:m.y,hunger:m.hunger,flip:m.flip})),
+      nextMantisId,
+      caveProgress:cave?cave.sacrificeProgress:0,
+      ts:Date.now(),
+    };
+    localStorage.setItem(SAVE_KEY,JSON.stringify(data));
+    return true;
+  } catch(e){console.warn('Save failed:',e);return false;}
+}
+
+function resetGame(){
+  if(!confirm('Reset your save? You will lose all progress.'))return;
+  isResetting=true;
+  localStorage.removeItem(SAVE_KEY);
+  location.reload();
+}
+
+// Auto-save every 5 seconds
+setInterval(saveGame,5000);
+// Save on page close/refresh
+window.addEventListener('beforeunload',saveGame);
+// On tab regain focus, reset lastTs to prevent any timing weirdness
+document.addEventListener('visibilitychange',()=>{
+  if(!document.hidden){
+    // Tab is visible again — flag the next animation frame to use a fresh timestamp
+    lastTs=performance.now();
+  }
+});
+// ══ END SAVE / LOAD SYSTEM ═══════════════════════════════════════════════════
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+const loaded=loadGame();
+if(!loaded){
+  // Fresh game
+  createShrimp('red',400,500);
+  createShrimp('red',700,700);
+}
+initStockPrice('red');
+selectedStock='red';
+moneyEl.textContent=Math.floor(money).toLocaleString();
+updateCam();updateUI();
+renderStockList();
+setTimeout(()=>drawChart('red'),100);
+requestAnimationFrame(ts=>{lastTs=ts;requestAnimationFrame(gameLoop);});
+</script>
+</body>
+</html>
