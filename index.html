@@ -2051,7 +2051,7 @@ let cave=null; // {el, sacrificeProgress:0..200}
 // Mantis tuning — relaxed pacing
 const MANTIS_DRAW=320;          // ~5× shrimp size (64)
 const MANTIS_HALF=160;
-const MANTIS_HUNGER_MAX=600;    // hunger pool: 10 minutes if never fed (just for the death timer)
+const MANTIS_HUNGER_MAX=300;    // hunger pool: 10 minutes if never fed (just for the death timer)
 const MANTIS_PATROL_SPEED=42;
 const MANTIS_PURSUE_SPEED=85;
 const MANTIS_EAT_RADIUS=140;
@@ -2067,7 +2067,7 @@ const MANTIS_POST_EAT_PAUSE_MAX=0;
 const MANTIS_DIAMOND_INTERVAL=30;    // one diamond per ~30s, ambient
 const DIAMOND_BASE_VALUE=8000;
 const DIAMOND_VARIANCE=4000;
-const SACRIFICE_COST=200;
+const SACRIFICE_COST=2;
 
 const UPGRADES=[
   {
@@ -3633,18 +3633,19 @@ function loadGame(){
       if(data.caveProgress)cave.sacrificeProgress=data.caveProgress;
       updateCaveCounter();
     }
-    // Restore mantises (positions/hunger only — desire/timers reset on load)
+    // Restore mantises with full hunt state
     for(const md of (data.mantises||[])){
+      const wasHunting=md.state==='hunting'&&!!md.desire;
       const m={
         id:md.id||(nextMantisId++),
         x:md.x,y:md.y,
         flip:!!md.flip,
         hunger:md.hunger??MANTIS_HUNGER_MAX,
-        state:'idle',           // always reload as idle so a fresh hunt cycle begins
-        desire:null,
-        targetsRemaining:0,
-        huntTimeout:0,
-        nextHuntIn:30+Math.random()*40,
+        state:wasHunting?'hunting':'idle',
+        desire:wasHunting?md.desire:null,
+        targetsRemaining:wasHunting?(md.targetsRemaining||1):0,
+        huntTimeout:wasHunting?MANTIS_HUNT_TIMEOUT:0,
+        nextHuntIn:wasHunting?0:(30+Math.random()*40),
         postEatPause:0,
         diamondAccum:0,
         patrolTarget:null,
@@ -3736,7 +3737,7 @@ function saveGame(){
       prawnstigeUpgrades:{...prawnstigeUpgrades},
       prawnstigeCount:{...prawnstigeCount},
       unlockedUpgrades:[...unlockedUpgrades],
-      mantises:mantises.map(m=>({id:m.id,x:m.x,y:m.y,hunger:m.hunger,flip:m.flip})),
+      mantises:mantises.map(m=>({id:m.id,x:m.x,y:m.y,hunger:m.hunger,flip:m.flip,state:m.state,desire:m.desire,targetsRemaining:m.targetsRemaining})),
       nextMantisId,
       caveProgress:cave?cave.sacrificeProgress:0,
       ts:Date.now(),
